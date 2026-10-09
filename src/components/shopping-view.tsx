@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { detectPlatform } from "@/lib/phone-timer";
 import { AnimatePresence, motion } from "motion/react";
 import { Check, Plus, Refrigerator, Share2, Trash2, X } from "lucide-react";
 import type { ShoppingItem } from "@/lib/types";
@@ -80,6 +81,12 @@ export function ShoppingView({
 }) {
   const [draft, setDraft] = useState("");
   const [shared, setShared] = useState(false);
+  const [isIos, setIsIos] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- detekcija platforme posle hidracije
+    setIsIos(detectPlatform() === "ios");
+  }, []);
   const todo = items.filter((i) => !i.done);
   const done = items.filter((i) => i.done);
 
@@ -176,9 +183,14 @@ export function ShoppingView({
                   ) : (
                     <Share2 className="h-4 w-4" />
                   )}
-                  {shared ? "Kopirano" : "Podeli"}
+                  {shared ? "Kopirano" : isIos ? "U Beleške" : "Podeli"}
                 </button>
               </div>
+              {isIos && (
+                <p className="mb-2 text-xs text-muted">
+                  „U Beleške“ otvara meni za deljenje → izaberi <b>Beleške</b> (Notes), WhatsApp ili Podsetnike.
+                </p>
+              )}
               <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface">
                 <AnimatePresence initial={false}>
                   {todo.map((i) => (

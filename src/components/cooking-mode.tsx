@@ -3,9 +3,17 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { ChevronLeft, ChevronRight, ListChecks, Sun, Timer, X } from "lucide-react";
+import { AlarmClock, ChevronLeft, ChevronRight, ListChecks, Sun, Timer, X } from "lucide-react";
 import type { Recipe } from "@/lib/types";
-import { findDurations, startTimer, useTimers } from "@/lib/timers";
+import { findDurations, formatRemaining, startTimer, useTimers } from "@/lib/timers";
+import {
+  IOS_SHORTCUT_NAME,
+  detectPlatform,
+  iosShortcutReady,
+  markIosShortcutReady,
+  phoneTimerUrl,
+  type Platform,
+} from "@/lib/phone-timer";
 import { TimerTray } from "./timer-tray";
 
 /** Drži ekran upaljenim dok je režim kuvanja otvoren. */
@@ -48,6 +56,22 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
   const [showIngredients, setShowIngredients] = useState(false);
   const timers = useTimers();
   const wakeLocked = useWakeLock(open);
+  const [platform, setPlatform] = useState<Platform>("other");
+  const [shortcutHelp, setShortcutHelp] = useState<{ minutes: number; label: string } | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- detekcija platforme posle hidracije
+    setPlatform(detectPlatform());
+  }, []);
+
+  const openPhoneTimer = (minutes: number, label: string, skipSetup = false) => {
+    if (platform === "ios" && !skipSetup && !iosShortcutReady()) {
+      setShortcutHelp({ minutes, label });
+      return;
+    }
+    const url = phoneTimerUrl(platform, minutes, label);
+    if (url) window.location.href = url;
+  };
 
   const total = recipe.steps.length;
   const last = step === total - 1;
@@ -88,26 +112,25 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
         >
           {/* Zaglavlje */}
           <div className="pt-safe px-4">
-            <div className="flex h-14 items-center gap-3">
+            <div className="flex min-h-14 items-center gap-3 pb-2">
               <button
                 type="button"
                 onClick={onClose}
                 aria-label="Zatvori režim kuvanja"
-                className="grid h-10 w-10 place-items-center rounded-full bg-surface-2"
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-2"
               >
                 <X className="h-5 w-5" />
               </button>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">
+                <p className="line-clamp-2 text-sm leading-tight font-semibold">
                   {recipe.emoji} {recipe.name}
                 </p>
-                <p className="flex items-center gap-1 text-xs text-muted">
+                <p className="mt-0.5 flex items-center gap-1.5 text-xs whitespace-nowrap text-muted">
                   Korak {step + 1} od {total}
                   {wakeLocked && (
-                    <>
-                      {" · "}
-                      <Sun className="h-3 w-3" /> ekran ostaje upaljen
-                    </>
+                    <span title="Ekran ostaje upaljen" className="flex items-center gap-0.5 text-ok">
+                      <Sun className="h-3 w-3" /> ekran upaljen
+                    </span>
                   )}
                 </p>
               </div>
@@ -115,9 +138,10 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
                 type="button"
                 onClick={() => setShowIngredients((v) => !v)}
                 aria-pressed={showIngredients}
-                className={`flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium ${showIngredients ? "bg-text text-bg" : "bg-surface-2"}`}
+                aria-label="Sastojci"
+                className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${showIngredients ? "bg-text text-bg" : "bg-surface-2"}`}
               >
-                <ListChecks className="h-4 w-4" /> Sastojci
+                <ListChecks className="h-5 w-5" />
               </button>
             </div>
             {/* Segmentirani progres */}
@@ -191,18 +215,35 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
                 <p className="font-display text-[26px] leading-snug font-medium text-balance">{recipe.steps[step]}</p>
 
                 {durations.length > 0 && (
-                  <div className="mt-6 flex flex-wrap gap-2">
-                    {durations.map((d) => (
-                      <motion.button
-                        key={d.label}
-                        type="button"
-                        whileTap={{ scale: 0.94 }}
-                        onClick={() => startTimer(`${recipe.emoji} Korak ${step + 1} · ${d.label}`, d.minutes)}
-                        className="flex h-12 items-center gap-2 rounded-2xl border-2 border-accent/40 bg-accent/10 px-4 font-semibold text-accent"
-                      >
-                        <Timer className="h-5 w-5" /> Pokreni tajmer {d.label}
-                      </motion.button>
-                    ))}
+                  <div className="mt-6 space-y-2">
+                    {durations.map((d) => {
+                      const label = `${recipe.emoji} Korak ${step + 1} · ${d.label}`;
+                      const running = timers.find((t) => t.label === label && !t.done);
+                      return (
+                        <div key={d.label} className="flex flex-wrap gap-2">
+                          <motion.button
+                            type="button"
+                            whileTap={{ scale: 0.94 }}
+                            disabled={!!running}
+                            onClick={() => startTimer(label, d.minutes)}
+                            className="flex h-12 items-center gap-2 rounded-2xl border-2 border-accent/40 bg-accent/10 px-4 font-semibold text-accent disabled:border-ok/40 disabled:bg-ok-soft disabled:text-ok"
+                          >
+                            <Timer className="h-5 w-5" />
+                            {running ? `Tajmer radi · ${formatRemaining(running)}` : `Pokreni tajmer ${d.label}`}
+                          </motion.button>
+                          {platform !== "other" && (
+                            <motion.button
+                              type="button"
+                              whileTap={{ scale: 0.94 }}
+                              onClick={() => openPhoneTimer(d.minutes, label)}
+                              className="flex h-12 items-center gap-2 rounded-2xl bg-surface-2 px-4 font-semibold"
+                            >
+                              <AlarmClock className="h-5 w-5" /> Na telefonu
+                            </motion.button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
@@ -215,6 +256,66 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
               <TimerTray />
             </div>
           )}
+
+          {/* Jednokratno podešavanje iOS prečice za sistemski tajmer */}
+          <AnimatePresence>
+            {shortcutHelp && (
+              <motion.div
+                className="absolute inset-0 z-10 flex items-end bg-black/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShortcutHelp(null)}
+              >
+                <motion.div
+                  initial={{ y: 40 }}
+                  animate={{ y: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="pb-safe w-full rounded-t-[28px] bg-surface px-5 pt-5"
+                >
+                  <h3 className="font-display text-xl font-bold">⏰ Tajmer na iPhone-u</h3>
+                  <p className="mt-1 text-sm text-muted">
+                    Safari ne može sam da pokrene sistemski tajmer, ali može preko aplikacije Prečice. Podešava se jednom:
+                  </p>
+                  <ol className="mt-4 list-decimal space-y-2 pl-5 text-[15px]">
+                    <li>
+                      Otvori <b>Prečice</b> (Shortcuts) → <b>+</b> nova prečica.
+                    </li>
+                    <li>
+                      Dodaj radnju <b>Pokreni tajmer</b> (Start Timer).
+                    </li>
+                    <li>
+                      Za trajanje izaberi <b>Ulaz u prečicu</b> (Shortcut Input), a za jedinicu <b>sekunde</b>.
+                    </li>
+                    <li>
+                      Nazovi prečicu tačno: <b className="text-accent">{IOS_SHORTCUT_NAME}</b>
+                    </li>
+                  </ol>
+                  <div className="mt-5 flex gap-2 pb-4">
+                    <button
+                      type="button"
+                      onClick={() => setShortcutHelp(null)}
+                      className="h-12 flex-1 rounded-2xl bg-surface-2 font-semibold"
+                    >
+                      Kasnije
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        markIosShortcutReady();
+                        const { minutes, label } = shortcutHelp;
+                        setShortcutHelp(null);
+                        openPhoneTimer(minutes, label, true);
+                      }}
+                      className="bg-accent-gradient h-12 flex-[2] rounded-2xl font-semibold text-white"
+                    >
+                      Napravio sam, pokreni
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Navigacija */}
           <div className="pb-safe flex gap-3 px-4 pt-1">

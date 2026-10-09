@@ -83,8 +83,9 @@ select {
   display: none;
 }
 
+/* Dodatni razmak ispod statusne trake: iOS Safari zamućuje sadržaj tik ispod nje. */
 .pt-safe {
-  padding-top: max(env(safe-area-inset-top), 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 12px);
 }
 .pb-safe {
   padding-bottom: max(env(safe-area-inset-bottom), 12px);

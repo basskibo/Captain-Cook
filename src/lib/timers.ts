@@ -82,6 +82,9 @@ export function startTimer(label: string, minutes: number) {
     if ("Notification" in window && Notification.permission === "default") void Notification.requestPermission();
   } catch {}
 
+  // Isti tajmer već radi (npr. dupli tap) → ne pokreći drugi.
+  if (timers.some((t) => t.label === label && !t.done)) return;
+
   const durationMs = Math.round(minutes * 60_000);
   timers.push({
     id: crypto.randomUUID(),

@@ -25,8 +25,8 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 📸 **Fotografije jela** | AI daje engleski naziv jela, a uz recept stiže prava fotografija sa Pexels-a (ilustrativna, sa potpisom autora). |
 | 📖 **Recepti** | Sastojci (šta imaš / šta treba dokupiti), koraci koje štikliraš dok kuvaš, savet šefa, „Još predloga“ bez ponavljanja. |
 | ⚖️ **Broj porcija** | Promeni porcije u receptu i količine se odmah preračunaju (razlomci, opsezi, lepo zaokruženi grami), bez novog AI poziva. |
-| 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
-| 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, deljenje (WhatsApp/Viber) i „Prebaci kupljeno u frižider“. |
+| 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem, ili za **sistemski tajmer telefona** (Android direktno, iPhone preko prečice „Captain Tajmer“). |
+| 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, slanje u Beleške (Notes), WhatsApp ili Viber i „Prebaci kupljeno u frižider“. |
 | 💬 **Pitaj kuvara** | Chat u receptu: „nemam pavlaku, čime da zamenim?“, „može li u airfryer?“. Kuvar zna recept i tvoj ukus, odgovori stižu uživo. |
 | ☁️ **Sinhronizacija** | Opciono preko Upstash Redis-a: izmene na jednom uređaju stižu na drugi (pri otvaranju i povratku u aplikaciju). Novija izmena pobeđuje; pri prvom povezivanju uređaja liste se spajaju, pa se postojeći podaci ne gube. |
 | 📴 **Offline** | Service worker kešira aplikaciju: sačuvani recepti, lista za kupovinu i tajmeri rade i bez interneta. |
@@ -85,6 +85,16 @@ npm run dev
 
 Za lokalni rad prekopiraj te dve vrednosti u `.env`.
 
+### ⏰ Sistemski tajmer na iPhone-u (jednom)
+
+Safari ne može sam da pokrene tajmer u aplikaciji Sat, pa to radi preko Prečica:
+
+1. **Prečice** → **+** → radnja **Pokreni tajmer** (Start Timer).
+2. Trajanje: **Ulaz u prečicu** (Shortcut Input), jedinica: **sekunde**.
+3. Nazovi prečicu tačno **Captain Tajmer**.
+
+Dugme „Na telefonu“ u režimu kuvanja zatim pokreće pravi iOS tajmer, koji radi i kad je ekran zaključan.
+
 ## 🗂️ Struktura
 
 ```
@@ -130,6 +140,7 @@ src/
     ├── limits.ts               # PIN zaključavanje + dnevni AI limit (Redis ili memorija)
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
+    ├── phone-timer.ts          # sistemski tajmer (iOS Prečice / Android intent)
     ├── timers.ts               # globalni tajmeri + prepoznavanje trajanja u tekstu
     ├── redis.ts                # minimalni Upstash REST klijent
     ├── sync.ts                 # klijentska sinhronizacija + status
