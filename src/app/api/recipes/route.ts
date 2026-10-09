@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isAuthed, unauthorized } from "@/lib/auth";
-import { generateRecipes } from "@/lib/ai/recipes";
+import { streamRecipes } from "@/lib/ai/recipes";
 
 export const maxDuration = 60;
 
@@ -22,14 +22,24 @@ export async function POST(request: Request) {
     return Response.json({ error: "Neispravan zahtev" }, { status: 400 });
   }
 
-  try {
-    const recipes = await generateRecipes(parsed.data);
-    return Response.json({ recipes });
-  } catch (err) {
-    console.error("[recipes]", err);
-    return Response.json(
-      { error: "Kuvar se zbunio 🤯 Pokušaj ponovo za trenutak." },
-      { status: 502 },
-    );
-  }
+  // NDJSON stream: jedan red po događaju ({type: "recipe" | "error" | "done"}).
+  const encoder = new TextEncoder();
+  const body = new ReadableStream({
+    async start(controller) {
+      const send = (event: object) => controller.enqueue(encoder.encode(JSON.stringify(event) + "\n"));
+      try {
+        for await (const recipe of streamRecipes(parsed.data)) send({ type: "recipe", recipe });
+        send({ type: "done" });
+      } catch (err) {
+        console.error("[recipes]", err);
+        send({ type: "error", error: "Kuvar se zbunio 🤯 Pokušaj ponovo za trenutak." });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(body, {
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" },
+  });
 }

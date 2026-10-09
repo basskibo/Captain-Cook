@@ -6,6 +6,7 @@ import { BookHeart, ChefHat, Lock, RefreshCw, ShoppingBasket, Sparkles, Utensils
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
 import type { Recipe } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
+import { readNdjson } from "@/lib/ndjson";
 import { PantryView } from "./pantry-view";
 import { OptionsSheet, defaultMealType, type CookOptions } from "./options-sheet";
 import { RecipeCard } from "./recipe-card";
@@ -66,6 +67,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [scanInput, setScanInput] = useState<ScanInput | null>(null);
@@ -133,6 +135,10 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
     setLoadingLine(0);
     window.scrollTo({ top: 0, behavior: "smooth" });
 
+    const base = more ? results : [];
+    const batch: Recipe[] = [];
+    setStreaming(true);
+
     try {
       const res = await fetch("/api/recipes", {
         method: "POST",
@@ -151,13 +157,25 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         onLocked();
         return;
       }
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Greška");
-      setResults((prev) => (more ? [...data.recipes, ...prev] : data.recipes).slice(0, MAX_RESULTS));
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Greška");
+
+      // Recepti stižu jedan po jedan — prikazuj ih odmah.
+      type Event = { type: "recipe"; recipe: Recipe } | { type: "error"; error: string } | { type: "done" };
+      for await (const event of readNdjson<Event>(res)) {
+        if (event.type === "recipe") {
+          batch.push(event.recipe);
+          setResults([...batch, ...base].slice(0, MAX_RESULTS));
+          setLoading(false);
+        } else if (event.type === "error") {
+          throw new Error(event.error);
+        }
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Nešto nije u redu");
+      // Ako je deo recepata stigao, zadrži ih i ne prikazuj grešku preko njih.
+      if (batch.length === 0) setError(e instanceof Error ? e.message : "Nešto nije u redu");
     } finally {
       setLoading(false);
+      setStreaming(false);
     }
   };
 
@@ -272,7 +290,24 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                   ))}
                 </AnimatePresence>
 
-                {!loading && results.length > 0 && (
+                {streaming && !loading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 rounded-3xl border border-dashed border-border p-4 text-muted"
+                  >
+                    <motion.span
+                      animate={{ rotate: [0, -15, 15, 0] }}
+                      transition={{ repeat: Infinity, duration: 1.2 }}
+                      className="text-xl"
+                    >
+                      👨‍🍳
+                    </motion.span>
+                    <span className="text-sm font-medium">Šef smišlja još jedan predlog…</span>
+                  </motion.div>
+                )}
+
+                {!streaming && results.length > 0 && (
                   <div className="flex gap-2 pt-2">
                     <motion.button
                       whileTap={{ scale: 0.97 }}

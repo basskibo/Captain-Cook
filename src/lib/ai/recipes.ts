@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { GenerateRequest, Recipe } from "../types";
 import { findDishPhoto } from "../images";
-import { extractJson, generateText } from "./provider";
+import { streamText } from "./provider";
 
 const MEAL_LABELS: Record<GenerateRequest["mealType"], string> = {
   dorucak: "doručak",
@@ -33,8 +33,6 @@ const recipeSchema = z.object({
   steps: z.array(z.string()).min(1),
   tip: z.string().optional(),
 });
-
-const responseSchema = z.object({ recipes: z.array(recipeSchema).min(1) });
 
 const SYSTEM_PROMPT = `Ti si iskusan kuvar i nutricionista koji predlaže praktična, ukusna jela za kućno kuvanje.
 Odgovaraš ISKLJUČIVO na srpskom jeziku (latinica) i ISKLJUČIVO validnim JSON-om, bez markdown-a i bez ikakvog teksta van JSON-a.
@@ -103,20 +101,66 @@ function mockResponse(req: GenerateRequest, count: number) {
   });
 }
 
-export async function generateRecipes(req: GenerateRequest, count = 3): Promise<Recipe[]> {
-  const prompt = buildPrompt(req, count);
-  const raw = await generateText({
+/**
+ * Izvlači kompletne JSON objekte iz teksta koji stiže u delovima.
+ * Radi i za {"recipes":[...]} i za objekte u zasebnim redovima.
+ */
+class ObjectExtractor {
+  private buf = "";
+  private pos = 0;
+  private starts: number[] = [];
+  private inString = false;
+  private escape = false;
+
+  push(chunk: string): unknown[] {
+    this.buf += chunk;
+    const out: unknown[] = [];
+    for (; this.pos < this.buf.length; this.pos++) {
+      const c = this.buf[this.pos];
+      if (this.inString) {
+        if (this.escape) this.escape = false;
+        else if (c === "\\") this.escape = true;
+        else if (c === '"') this.inString = false;
+        continue;
+      }
+      if (c === '"') this.inString = true;
+      else if (c === "{") this.starts.push(this.pos);
+      else if (c === "}") {
+        const start = this.starts.pop();
+        if (start === undefined) continue;
+        try {
+          out.push(JSON.parse(this.buf.slice(start, this.pos + 1)));
+        } catch {}
+      }
+    }
+    return out;
+  }
+}
+
+function isRecipeLike(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && "name" in v && "steps" in v && "ingredients" in v;
+}
+
+/** Strimuje recepte jedan po jedan, čim AI završi svaki. */
+export async function* streamRecipes(req: GenerateRequest, count = 3): AsyncGenerator<Recipe> {
+  const extractor = new ObjectExtractor();
+  let emitted = 0;
+  const stream = streamText({
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", parts: [{ text: prompt }] }],
+    messages: [{ role: "user", parts: [{ text: buildPrompt(req, count) }] }],
     json: true,
     mock: () => mockResponse(req, count),
   });
-  const parsed = responseSchema.parse(extractJson(raw));
-  return Promise.all(
-    parsed.recipes.map(async ({ imageQuery, ...r }) => ({
-      ...r,
-      id: crypto.randomUUID(),
-      image: await findDishPhoto(imageQuery || r.name, r.name),
-    })),
-  );
+
+  for await (const chunk of stream) {
+    for (const obj of extractor.push(chunk)) {
+      if (!isRecipeLike(obj)) continue;
+      const parsed = recipeSchema.safeParse(obj);
+      if (!parsed.success) continue;
+      const { imageQuery, ...r } = parsed.data;
+      emitted++;
+      yield { ...r, id: crypto.randomUUID(), image: await findDishPhoto(imageQuery || r.name, r.name) };
+    }
+  }
+  if (emitted === 0) throw new Error("AI nije vratio nijedan recept");
 }

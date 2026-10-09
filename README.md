@@ -18,6 +18,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
 | ⚙️ **Podešavanja obroka** | Doručak / ručak / večera / užina / desert (automatski po dobu dana), vreme pripreme, broj porcija, „samo ono što imam“ i posebne želje. |
+| ⚡ **Streaming** | Recepti se pojavljuju jedan po jedan, čim ih AI napiše. Prvi stiže za ~2 s. |
 | 🍳 **Animacija kuvanja** | Dok AI razmišlja, tvoje namirnice skaču iz tiganja iznad plamena. |
 | 📸 **Fotografije jela** | AI daje engleski naziv jela, a uz recept stiže prava fotografija sa Pexels-a (ilustrativna, sa potpisom autora). |
 | 📖 **Recepti** | Sastojci (šta imaš / šta treba dokupiti), koraci koje štikliraš dok kuvaš, savet šefa, „Još predloga“ bez ponavljanja. |
@@ -69,7 +70,7 @@ npm run dev
 src/
 ├── app/
 │   ├── api/auth/route.ts       # PIN provera i sesija (GET / POST / DELETE)
-│   ├── api/recipes/route.ts    # generisanje recepata (zaštićeno sesijom, zod validacija)
+│   ├── api/recipes/route.ts    # recepti kao NDJSON stream (zaštićeno sesijom, zod validacija)
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
@@ -88,6 +89,7 @@ src/
     ├── ai/provider.ts          # Gemini / Anthropic / mock: streaming, slike, fallback
     ├── ai/recipes.ts           # prompt i validacija recepata
     ├── ai/scan.ts              # prepoznavanje namirnica
+    ├── ndjson.ts               # čitanje NDJSON strima u browseru
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
     ├── auth.ts                 # HMAC sesija, rate limit
     ├── images.ts               # Pexels pretraga fotografija jela
