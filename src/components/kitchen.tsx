@@ -1,0 +1,437 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { BookHeart, ChefHat, Lock, RefreshCw, ShoppingBasket, Sparkles, UtensilsCrossed } from "lucide-react";
+import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
+import type { Recipe } from "@/lib/types";
+import { usePersistentState } from "@/lib/use-persistent-state";
+import { PantryView } from "./pantry-view";
+import { OptionsSheet, defaultMealType, type CookOptions } from "./options-sheet";
+import { RecipeCard } from "./recipe-card";
+import { CookingAnimation } from "./cooking-animation";
+import { RecipeDetail } from "./recipe-detail";
+
+type Tab = "pantry" | "recipes" | "saved";
+
+const TABS: { id: Tab; label: string; icon: typeof ShoppingBasket }[] = [
+  { id: "pantry", label: "Namirnice", icon: ShoppingBasket },
+  { id: "recipes", label: "Predlozi", icon: UtensilsCrossed },
+  { id: "saved", label: "Sačuvano", icon: BookHeart },
+];
+
+const LOADING_LINES = [
+  "Zagrevam tiganj…",
+  "Listam bakine sveske…",
+  "Seckam luk (bez suza)…",
+  "Probam da li treba soli…",
+  "Konsultujem se sa šefom…",
+  "Slažem tanjire…",
+];
+
+const MAX_RESULTS = 12;
+
+function guessEmoji(name: string) {
+  const n = name.toLowerCase();
+  const map: [RegExp, string][] = [
+    [/riba|som|šaran|pastrmk|skuš|sardin/, "🐟"],
+    [/meso|teletin|jagnjet|ćuret|pačj/, "🥩"],
+    [/sir|cheese/, "🧀"],
+    [/hleb|lepinj|kifl|baget/, "🥖"],
+    [/vino/, "🍷"],
+    [/pivo/, "🍺"],
+    [/orah|bade|lešnik|semenk/, "🌰"],
+    [/kupin|malin|višn|trešn|grožđ|šljiv|kajsij|bresk|dinj|lubenic/, "🍒"],
+    [/salat|rukol|blitv|kelj|zelje/, "🥬"],
+    [/čili|ljut/, "🌶️"],
+    [/sos|preliv/, "🥫"],
+  ];
+  return map.find(([re]) => re.test(n))?.[1] ?? "🥄";
+}
+
+export function Kitchen({ onLocked }: { onLocked: () => void }) {
+  const [tab, setTab] = useState<Tab>("pantry");
+  const [custom, setCustom] = usePersistentState<Ingredient[]>("cc.custom", []);
+  const [selectedList, setSelectedList] = usePersistentState<string[]>("cc.selected", []);
+  const [results, setResults] = usePersistentState<Recipe[]>("cc.results", []);
+  const [saved, setSaved] = usePersistentState<Recipe[]>("cc.saved", []);
+  const [options, setOptions, optionsHydrated] = usePersistentState<CookOptions>("cc.options", {
+    mealType: "rucak",
+    maxTime: 30,
+    servings: 2,
+    strict: false,
+    note: "",
+  });
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [openRecipe, setOpenRecipe] = useState<Recipe | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingLine, setLoadingLine] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+
+  const selected = useMemo(() => new Set(selectedList), [selectedList]);
+  const savedIds = useMemo(() => new Set(saved.map((r) => r.id)), [saved]);
+
+  // Obrok po dobu dana pri svakom otvaranju aplikacije.
+  useEffect(() => {
+    if (optionsHydrated) setOptions((o) => ({ ...o, mealType: defaultMealType() }));
+  }, [optionsHydrated, setOptions]);
+
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setLoadingLine((n) => (n + 1) % LOADING_LINES.length), 1800);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  const cookingEmojis = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of [...ALL_INGREDIENTS, ...custom]) map.set(i.id, i.emoji);
+    return selectedList.map((id) => map.get(id)).filter((e): e is string => !!e && e !== "🥄");
+  }, [selectedList, custom]);
+
+  const names = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const i of ALL_INGREDIENTS) map.set(i.id, i.name);
+    for (const i of custom) map.set(i.id, i.name);
+    return map;
+  }, [custom]);
+
+  const toggle = useCallback(
+    (id: string) => setSelectedList((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id])),
+    [setSelectedList],
+  );
+
+  const addCustom = (name: string) => {
+    const clean = name.charAt(0).toUpperCase() + name.slice(1);
+    const id = clean.toLowerCase();
+    setCustom((c) => (c.some((i) => i.id === id) ? c : [{ id, name: clean, emoji: guessEmoji(clean) }, ...c]));
+    setSelectedList((l) => (l.includes(id) ? l : [...l, id]));
+  };
+
+  const removeCustom = (id: string) => {
+    setCustom((c) => c.filter((i) => i.id !== id));
+    setSelectedList((l) => l.filter((x) => x !== id));
+  };
+
+  const toggleSave = (r: Recipe) =>
+    setSaved((s) => (s.some((x) => x.id === r.id) ? s.filter((x) => x.id !== r.id) : [r, ...s]));
+
+  const cook = async (more = false) => {
+    setOptionsOpen(false);
+    setTab("recipes");
+    setError(null);
+    setLoading(true);
+    setLoadingLine(0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    try {
+      const res = await fetch("/api/recipes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ingredients: selectedList.map((id) => names.get(id) ?? id),
+          mealType: options.mealType,
+          maxTime: options.maxTime,
+          servings: options.servings,
+          strict: options.strict,
+          note: options.note.trim() || undefined,
+          exclude: more ? results.map((r) => r.name).slice(0, 30) : undefined,
+        }),
+      });
+      if (res.status === 401) {
+        onLocked();
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Greška");
+      setResults((prev) => (more ? [...data.recipes, ...prev] : data.recipes).slice(0, MAX_RESULTS));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nešto nije u redu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    await fetch("/api/auth", { method: "DELETE" }).catch(() => {});
+    onLocked();
+  };
+
+  const count = selectedList.length;
+
+  return (
+    <div className="mx-auto min-h-dvh max-w-lg">
+      {/* Header */}
+      <header className="pt-safe px-4">
+        <div className="flex h-16 items-center gap-3">
+          <div className="bg-accent-gradient grid h-10 w-10 place-items-center rounded-2xl text-white shadow-[0_8px_20px_-8px_var(--glow)]">
+            <ChefHat className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-medium text-muted">Captain Cook</p>
+            <h1 className="font-display text-xl leading-tight font-bold">{TABS.find((t) => t.id === tab)?.label}</h1>
+          </div>
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Zaključaj"
+            className="grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted active:text-text"
+          >
+            <Lock className="h-4.5 w-4.5" />
+          </button>
+        </div>
+      </header>
+
+      <main className="px-4">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+          >
+            {tab === "pantry" && (
+              <PantryView
+                custom={custom}
+                selected={selected}
+                onToggle={toggle}
+                onAddCustom={addCustom}
+                onRemoveCustom={removeCustom}
+                onClear={() => setSelectedList([])}
+              />
+            )}
+
+            {tab === "recipes" && (
+              <div className="space-y-3 pt-2 pb-32">
+                {loading && (
+                  <>
+                    <div className="flex items-center gap-3 rounded-2xl bg-surface-2/60 p-4">
+                      <motion.span
+                        animate={{ rotate: [0, -15, 15, 0] }}
+                        transition={{ repeat: Infinity, duration: 1.2 }}
+                        className="text-2xl"
+                      >
+                        👨‍🍳
+                      </motion.span>
+                      <AnimatePresence mode="wait">
+                        <motion.p
+                          key={loadingLine}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -6 }}
+                          className="font-medium"
+                        >
+                          {LOADING_LINES[loadingLine]}
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
+                    <CookingAnimation emojis={cookingEmojis} />
+                  </>
+                )}
+
+                {error && !loading && (
+                  <div className="rounded-2xl border border-danger/30 bg-danger/10 p-4 text-center">
+                    <p className="font-medium">{error}</p>
+                    <button type="button" onClick={() => cook()} className="mt-2 text-sm font-semibold text-accent">
+                      Pokušaj ponovo
+                    </button>
+                  </div>
+                )}
+
+                {!loading && results.length === 0 && !error && (
+                  <EmptyState
+                    emoji="🍳"
+                    title="Još nema predloga"
+                    text="Označi šta imaš u kuhinji i pusti šefa da smisli šta da kuvaš."
+                    action="Izaberi namirnice"
+                    onAction={() => setTab("pantry")}
+                  />
+                )}
+
+                <AnimatePresence initial={false}>
+                  {results.map((r, i) => (
+                    <RecipeCard
+                      key={r.id}
+                      recipe={r}
+                      index={i}
+                      saved={savedIds.has(r.id)}
+                      onOpen={() => setOpenRecipe(r)}
+                      onToggleSave={() => toggleSave(r)}
+                    />
+                  ))}
+                </AnimatePresence>
+
+                {!loading && results.length > 0 && (
+                  <div className="flex gap-2 pt-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      type="button"
+                      onClick={() => cook(true)}
+                      disabled={count === 0}
+                      className="flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl border border-border bg-surface font-semibold disabled:opacity-50"
+                    >
+                      <RefreshCw className="h-4 w-4" /> Još predloga
+                    </motion.button>
+                    <button
+                      type="button"
+                      onClick={() => setResults([])}
+                      className="h-12 rounded-2xl px-4 text-sm font-medium text-muted"
+                    >
+                      Očisti
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "saved" && (
+              <div className="space-y-3 pt-2 pb-32">
+                {saved.length === 0 ? (
+                  <EmptyState
+                    emoji="💛"
+                    title="Nema sačuvanih recepata"
+                    text="Tapni srce na receptu koji ti se dopadne i ovde će te čekati."
+                  />
+                ) : (
+                  <AnimatePresence initial={false}>
+                    {saved.map((r, i) => (
+                      <RecipeCard
+                        key={r.id}
+                        recipe={r}
+                        index={i}
+                        saved
+                        onOpen={() => setOpenRecipe(r)}
+                        onToggleSave={() => toggleSave(r)}
+                      />
+                    ))}
+                  </AnimatePresence>
+                )}
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* Donja traka: CTA + navigacija */}
+      <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4">
+        <AnimatePresence>
+          {tab === "pantry" && count > 0 && (
+            <motion.button
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              whileTap={{ scale: 0.97 }}
+              type="button"
+              onClick={() => setOptionsOpen(true)}
+              className="bg-accent-gradient pointer-events-auto mb-3 flex h-14 w-full items-center justify-between rounded-2xl pr-2 pl-5 text-white shadow-[0_16px_36px_-10px_var(--glow)]"
+            >
+              <span className="flex items-center gap-2 text-lg font-semibold">
+                <Sparkles className="h-5 w-5" /> Šta da skuvam?
+              </span>
+              <motion.span
+                key={count}
+                initial={{ scale: 1.4 }}
+                animate={{ scale: 1 }}
+                className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/20 px-2 font-bold"
+              >
+                {count}
+              </motion.span>
+            </motion.button>
+          )}
+        </AnimatePresence>
+
+        <nav className="pointer-events-auto flex rounded-[22px] border border-border bg-surface/85 p-1.5 shadow-xl backdrop-blur-xl">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            const Icon = t.icon;
+            const badge = t.id === "recipes" ? results.length : t.id === "saved" ? saved.length : count;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => {
+                  setTab(t.id);
+                  window.scrollTo({ top: 0 });
+                }}
+                aria-current={active ? "page" : undefined}
+                className="relative flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2"
+              >
+                {active && (
+                  <motion.span
+                    layoutId="nav-pill"
+                    className="absolute inset-0 rounded-2xl bg-surface-2"
+                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                  />
+                )}
+                <span className="relative">
+                  <Icon className={`h-5 w-5 ${active ? "text-accent" : "text-muted"}`} strokeWidth={active ? 2.3 : 2} />
+                  {badge > 0 && (
+                    <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-ink">
+                      {badge}
+                    </span>
+                  )}
+                </span>
+                <span className={`relative text-[11px] font-semibold ${active ? "text-text" : "text-muted"}`}>
+                  {t.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <OptionsSheet
+        open={optionsOpen}
+        onClose={() => setOptionsOpen(false)}
+        options={options}
+        onChange={setOptions}
+        onCook={() => cook()}
+        count={count}
+      />
+
+      <RecipeDetail
+        recipe={openRecipe}
+        saved={openRecipe ? savedIds.has(openRecipe.id) : false}
+        onClose={() => setOpenRecipe(null)}
+        onToggleSave={() => openRecipe && toggleSave(openRecipe)}
+      />
+    </div>
+  );
+}
+
+function EmptyState({
+  emoji,
+  title,
+  text,
+  action,
+  onAction,
+}: {
+  emoji: string;
+  title: string;
+  text: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center px-6 py-16 text-center">
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+        className="grid h-24 w-24 place-items-center rounded-[32px] bg-surface-2 text-5xl"
+      >
+        {emoji}
+      </motion.div>
+      <h2 className="mt-5 font-display text-xl font-semibold">{title}</h2>
+      <p className="mt-1.5 max-w-xs text-muted">{text}</p>
+      {action && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-5 h-11 rounded-2xl bg-text px-5 font-semibold text-bg"
+        >
+          {action}
+        </button>
+      )}
+    </motion.div>
+  );
+}
