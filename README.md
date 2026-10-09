@@ -16,6 +16,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 |---|---|
 | 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada posle 5 pogrešnih pokušaja. AI troše samo oni koji znaju PIN. |
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
+| 🎙️ **Glasovni unos** | Reci „imam dva jajeta, malo sira i crnog luka“ i namirnice se označe (Web Speech API + AI razume padeže). |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
 | 🧑‍🍳 **Moj ukus** | Trajni profil: ishrana (posno, vege, keto…), alergije (nikad u receptu), šta ne voliš, ljutina, omiljene kuhinje i oprema (airfryer, rerna…). |
 | ⚙️ **Podešavanja obroka** | Doručak / ručak / večera / užina / desert (automatski po dobu dana), vreme pripreme, broj porcija, „samo ono što imam“ i posebne želje. |
@@ -104,6 +105,7 @@ src/
     ├── ai/scan.ts              # prepoznavanje namirnica
     ├── ai/chat.ts              # chat o receptu
     ├── ndjson.ts               # čitanje NDJSON strima u browseru
+    ├── use-speech.ts           # prepoznavanje govora (sr-RS)
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
     ├── auth.ts                 # HMAC sesija, rate limit

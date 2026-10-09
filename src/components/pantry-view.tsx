@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, Check, Plus, Search, X } from "lucide-react";
+import { Camera, Check, Mic, Plus, Search, Square, X } from "lucide-react";
+import { useSpeech } from "@/lib/use-speech";
 import { CATEGORIES, type Ingredient } from "@/lib/ingredients";
 
 const MINE = "moje";
@@ -71,6 +72,7 @@ export function PantryView({
   onRemoveCustom,
   onClear,
   onScanImage,
+  onVoice,
 }: {
   custom: Ingredient[];
   selected: Set<string>;
@@ -79,7 +81,9 @@ export function PantryView({
   onRemoveCustom: (id: string) => void;
   onClear: () => void;
   onScanImage: (file: File) => void;
+  onVoice: (text: string) => void;
 }) {
+  const speech = useSpeech(onVoice);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("sve");
 
@@ -144,6 +148,23 @@ export function PantryView({
               <X className="h-4 w-4" />
             </button>
           )}
+          {speech.supported && !query && (
+            <button
+              type="button"
+              onClick={speech.listening ? speech.stop : speech.start}
+              aria-label={speech.listening ? "Zaustavi slušanje" : "Izgovori namirnice"}
+              className={`relative grid h-9 w-9 place-items-center rounded-xl ${speech.listening ? "bg-danger text-white" : "text-muted"}`}
+            >
+              {speech.listening && (
+                <motion.span
+                  className="absolute inset-0 rounded-xl bg-danger"
+                  animate={{ scale: [1, 1.5], opacity: [0.5, 0] }}
+                  transition={{ repeat: Infinity, duration: 1.1 }}
+                />
+              )}
+              {speech.listening ? <Square className="relative h-3.5 w-3.5" fill="currentColor" /> : <Mic className="h-5 w-5" />}
+            </button>
+          )}
           <AnimatePresence>
             {query.trim() && !exists && (
               <motion.button
@@ -176,6 +197,24 @@ export function PantryView({
           />
         </label>
         </div>
+
+        <AnimatePresence>
+          {(speech.listening || speech.error) && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-2 flex items-center gap-3 rounded-2xl border border-danger/30 bg-danger/10 px-4 py-3">
+                <span className="text-xl">{speech.error ? "🙉" : "🎙️"}</span>
+                <p className="min-w-0 flex-1 text-sm">
+                  {speech.error ?? (speech.interim ? `„${speech.interim}“` : "Slušam… reci npr. „imam jaja, crni luk i sir“")}
+                </p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Filteri kategorija */}
         {!query && (

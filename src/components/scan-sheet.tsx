@@ -7,6 +7,15 @@ import type { Ingredient } from "@/lib/ingredients";
 import { resizeImage } from "@/lib/resize-image";
 import { Sheet } from "./sheet";
 
+/** Akuzativ: 1 namirnicu, 2-4 namirnice, 5+ namirnica (uz izuzetke 11-14). */
+function namirnica(n: number) {
+  const last = n % 10;
+  const lastTwo = n % 100;
+  if (last === 1 && lastTwo !== 11) return "namirnicu";
+  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return "namirnice";
+  return "namirnica";
+}
+
 type ScanInput = { kind: "image"; file: File } | { kind: "text"; text: string };
 
 type State =
@@ -196,7 +205,7 @@ export function ScanSheet({
             onClick={confirm}
             className="bg-accent-gradient flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-semibold text-white disabled:opacity-40"
           >
-            <Check className="h-5 w-5" /> Dodaj {picked.size} {picked.size === 1 ? "namirnicu" : "namirnica"}
+            <Check className="h-5 w-5" /> Dodaj {picked.size} {namirnica(picked.size)}
           </motion.button>
         </div>
       )}

@@ -288,6 +288,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                 onRemoveCustom={removeCustom}
                 onClear={() => setSelectedList([])}
                 onScanImage={(file) => setScanInput({ kind: "image", file })}
+                onVoice={(text) => setScanInput({ kind: "text", text })}
               />
             )}
 
