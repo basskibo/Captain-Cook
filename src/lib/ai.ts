@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { GenerateRequest, Recipe } from "./types";
+import { findDishPhoto } from "./images";
 
 const MEAL_LABELS: Record<GenerateRequest["mealType"], string> = {
   dorucak: "doručak",
@@ -13,6 +14,7 @@ const MEAL_LABELS: Record<GenerateRequest["mealType"], string> = {
 const recipeSchema = z.object({
   name: z.string().min(1),
   emoji: z.string().default("🍽️"),
+  imageQuery: z.string().optional(),
   description: z.string().default(""),
   timeMinutes: z.coerce.number().int().positive().catch(30),
   difficulty: z.enum(["lako", "srednje", "teško"]).catch("srednje"),
@@ -42,6 +44,7 @@ Format odgovora:
     {
       "name": "Naziv jela",
       "emoji": "jedan emoji koji predstavlja jelo",
+      "imageQuery": "kratak ENGLESKI naziv jela za pretragu fotografija, 2-4 reči (npr. \"moussaka\", \"creamy chicken pasta\")",
       "description": "1-2 rečenice koje zvuče primamljivo",
       "timeMinutes": 30,
       "difficulty": "lako" | "srednje" | "teško",
@@ -163,6 +166,7 @@ function mockResponse(req: GenerateRequest, count: number) {
     recipes: Array.from({ length: count }, (_, n) => ({
       name: `Probno jelo ${n + 1} sa ${base[0] ?? "ničim"}`,
       emoji: ["🍳", "🥘", "🍝"][n % 3],
+      imageQuery: ["spanish omelette", "moussaka", "creamy pasta"][n % 3],
       description: "Ovo je probni recept — podesi pravi AI ključ za prave predloge.",
       timeMinutes: 15 + n * 10,
       difficulty: ["lako", "srednje", "teško"][n % 3],
@@ -190,5 +194,11 @@ export async function generateRecipes(req: GenerateRequest, count = 3): Promise<
   const raw =
     p === "mock" ? mockResponse(req, count) : p === "gemini" ? await callGemini(prompt) : await callAnthropic(prompt);
   const parsed = responseSchema.parse(extractJson(raw));
-  return parsed.recipes.map((r) => ({ ...r, id: crypto.randomUUID() }));
+  return Promise.all(
+    parsed.recipes.map(async ({ imageQuery, ...r }) => ({
+      ...r,
+      id: crypto.randomUUID(),
+      image: await findDishPhoto(imageQuery || r.name, r.name),
+    })),
+  );
 }

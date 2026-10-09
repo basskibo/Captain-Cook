@@ -6,6 +6,7 @@ import { Check, Lightbulb, Share2, Users } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { Sheet } from "./sheet";
 import { HeartButton, Meta } from "./recipe-card";
+import { DishImage } from "./dish-image";
 
 function recipeToText(r: Recipe) {
   return [
@@ -47,27 +48,62 @@ function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: bo
 
   return (
     <div className="px-5 pb-10">
-      <div className="flex items-start justify-between">
-        <motion.div
-          initial={{ scale: 0.5, rotate: -20 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 300, damping: 15 }}
-          className="grid h-20 w-20 place-items-center rounded-3xl bg-surface-2 text-5xl"
-        >
-          {recipe.emoji}
-        </motion.div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={share}
-            aria-label="Podeli recept"
-            className="grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted"
+      {recipe.image ? (
+        <figure>
+          <div className="relative">
+            <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }}>
+              <DishImage image={recipe.image} size="src" className="aspect-[4/3] w-full rounded-3xl" />
+            </motion.div>
+            <div className="absolute top-3 right-3 flex gap-2">
+              <button
+                type="button"
+                onClick={share}
+                aria-label="Podeli recept"
+                className="grid h-10 w-10 place-items-center rounded-full bg-black/30 text-white backdrop-blur-md"
+              >
+                <Share2 className="h-5 w-5" />
+              </button>
+              <HeartButton
+                active={saved}
+                onClick={onToggleSave}
+                className={`backdrop-blur-md ${saved ? "!bg-white/90" : "!bg-black/30 !text-white"}`}
+              />
+            </div>
+            <span className="absolute bottom-3 left-3 grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-3xl backdrop-blur-md">
+              {recipe.emoji}
+            </span>
+          </div>
+          <figcaption className="mt-1.5 text-right text-[11px] text-muted">
+            Ilustrativna fotografija ·{" "}
+            <a href={recipe.image.creditUrl} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">
+              {recipe.image.credit}
+            </a>{" "}
+            / Pexels
+          </figcaption>
+        </figure>
+      ) : (
+        <div className="flex items-start justify-between">
+          <motion.div
+            initial={{ scale: 0.5, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 15 }}
+            className="grid h-20 w-20 place-items-center rounded-3xl bg-surface-2 text-5xl"
           >
-            <Share2 className="h-5 w-5" />
-          </button>
-          <HeartButton active={saved} onClick={onToggleSave} />
+            {recipe.emoji}
+          </motion.div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={share}
+              aria-label="Podeli recept"
+              className="grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted"
+            >
+              <Share2 className="h-5 w-5" />
+            </button>
+            <HeartButton active={saved} onClick={onToggleSave} />
+          </div>
         </div>
-      </div>
+      )}
 
       <h2 className="mt-4 font-display text-[28px] leading-tight font-bold">{recipe.name}</h2>
       <p className="mt-2 text-muted">{recipe.description}</p>

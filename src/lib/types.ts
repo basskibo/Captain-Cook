@@ -20,6 +20,16 @@ export interface Recipe {
   ingredients: RecipeIngredient[];
   steps: string[];
   tip?: string;
+  image?: RecipeImage;
+}
+
+export interface RecipeImage {
+  src: string;
+  thumb: string;
+  alt: string;
+  color?: string;
+  credit: string;
+  creditUrl: string;
 }
 
 export interface GenerateRequest {
