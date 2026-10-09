@@ -43,7 +43,7 @@ export function ChefChat({ recipe, profileNote }: { recipe: Recipe; profileNote?
           profileNote: profileNote || undefined,
         }),
       });
-      if (!res.ok || !res.body) throw new Error();
+      if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error);
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -54,8 +54,9 @@ export function ChefChat({ recipe, profileNote }: { recipe: Recipe; profileNote?
         answer += decoder.decode(value, { stream: true });
         setMessages([...history, { role: "assistant", text: answer }]);
       }
-    } catch {
-      setMessages([...history, { role: "assistant", text: "⚠️ Kuvar trenutno ne može da odgovori. Pokušaj ponovo." }]);
+    } catch (e) {
+      const msg = e instanceof Error && e.message ? e.message : "Kuvar trenutno ne može da odgovori. Pokušaj ponovo.";
+      setMessages([...history, { role: "assistant", text: `⚠️ ${msg}` }]);
     } finally {
       setBusy(false);
     }

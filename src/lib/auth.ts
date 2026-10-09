@@ -46,34 +46,6 @@ export function verifySessionToken(token: string | undefined) {
   return Number(payload) > Date.now() / 1000;
 }
 
-// Jednostavno ograničenje pokušaja po IP adresi (u memoriji jedne instance).
-const attempts = new Map<string, { count: number; until: number }>();
-const MAX_ATTEMPTS = 5;
-const LOCK_MS = 5 * 60 * 1000;
-
-export function lockedFor(ip: string) {
-  const a = attempts.get(ip);
-  if (!a || a.count < MAX_ATTEMPTS) return 0;
-  const left = a.until - Date.now();
-  if (left <= 0) {
-    attempts.delete(ip);
-    return 0;
-  }
-  return left;
-}
-
-export function registerFailure(ip: string) {
-  const a = attempts.get(ip) ?? { count: 0, until: 0 };
-  a.count += 1;
-  if (a.count >= MAX_ATTEMPTS) a.until = Date.now() + LOCK_MS;
-  attempts.set(ip, a);
-  return Math.max(0, MAX_ATTEMPTS - a.count);
-}
-
-export function clearFailures(ip: string) {
-  attempts.delete(ip);
-}
-
 /** Da li zahtev ima validnu sesiju (za zaštićene API rute). */
 export async function isAuthed() {
   return verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value);

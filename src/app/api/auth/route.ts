@@ -3,13 +3,11 @@ import {
   SESSION_COOKIE,
   SESSION_MAX_AGE,
   checkPin,
-  clearFailures,
   createSessionToken,
-  lockedFor,
   pinLength,
-  registerFailure,
   verifySessionToken,
 } from "@/lib/auth";
+import { clearPinFailures, pinLockedFor, registerPinFailure } from "@/lib/limits";
 
 function clientIp(request: Request) {
   return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
@@ -22,10 +20,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const ip = clientIp(request);
-  const locked = lockedFor(ip);
+  const locked = await pinLockedFor(ip);
   if (locked) {
     return Response.json(
-      { error: `Previše pokušaja. Probaj ponovo za ${Math.ceil(locked / 60000)} min.` },
+      { error: `Previše pokušaja. Probaj ponovo za ${Math.ceil(locked / 60)} min.` },
       { status: 429 },
     );
   }
@@ -36,14 +34,14 @@ export async function POST(request: Request) {
   if (!checkPin(pin)) {
     // Mali delay usporava brute-force.
     await new Promise((r) => setTimeout(r, 400));
-    const left = registerFailure(ip);
+    const left = await registerPinFailure(ip);
     return Response.json(
       { error: left > 0 ? `Pogrešan PIN (još ${left})` : "Previše pokušaja. Sačekaj 5 min." },
       { status: 401 },
     );
   }
 
-  clearFailures(ip);
+  await clearPinFailures(ip);
   (await cookies()).set(SESSION_COOKIE, createSessionToken(), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

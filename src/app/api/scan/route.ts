@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isAuthed, unauthorized } from "@/lib/auth";
+import { consumeAi } from "@/lib/limits";
 import { detectIngredients } from "@/lib/ai/scan";
 
 export const maxDuration = 60;
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Neispravan zahtev" }, { status: 400 });
+
+  const limited = await consumeAi();
+  if (limited) return limited;
 
   try {
     const { custom, ...input } = parsed.data;

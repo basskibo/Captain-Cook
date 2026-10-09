@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isAuthed, unauthorized } from "@/lib/auth";
+import { consumeAi } from "@/lib/limits";
 import { streamRecipes } from "@/lib/ai/recipes";
 
 export const maxDuration = 60;
@@ -31,6 +32,9 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return Response.json({ error: "Neispravan zahtev" }, { status: 400 });
   }
+
+  const limited = await consumeAi();
+  if (limited) return limited;
 
   // NDJSON stream: jedan red po događaju ({type: "recipe" | "error" | "done"}).
   const encoder = new TextEncoder();

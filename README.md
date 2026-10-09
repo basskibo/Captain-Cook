@@ -14,7 +14,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 
 | | |
 |---|---|
-| 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada posle 5 pogrešnih pokušaja. AI troše samo oni koji znaju PIN. |
+| 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada IP-a posle 5 pogrešnih pokušaja (+ globalna zaštita). Dnevni limit AI poziva čuva kvotu. |
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🎙️ **Glasovni unos** | Reci „imam dva jajeta, malo sira i crnog luka“ i namirnice se označe (Web Speech API + AI razume padeže). |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
@@ -59,12 +59,14 @@ npm run dev
 | `ANTHROPIC_API_KEY` | ✅* | Ključ sa <https://console.anthropic.com> |
 | `ANTHROPIC_MODEL` | | Podrazumevano `claude-haiku-5-5` |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | | Upstash Redis za sinhronizaciju (postavlja ih Vercel integracija). Rade i `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. |
+| `AI_DAILY_LIMIT` | | Najviše AI poziva dnevno (recepti + skeniranje + chat), podrazumevano `60`. Resetuje se u ponoć po beogradskom vremenu. |
 | `PEXELS_API_KEY` | | Prave fotografije jela. Besplatan ključ: <https://www.pexels.com/api/>. Bez njega se prikazuje emoji. |
 
 \* potreban je ključ za bar jednog provajdera.
 
 **Napomene**
 - Promena `APP_PIN`-a automatski odjavljuje sve uređaje.
+- Bez Redis-a se brojači (PIN pokušaji, AI limit) čuvaju u memoriji jedne serverless instance. Sa Redis-om (vidi Sinhronizacija) važe pouzdano za sve.
 - Besplatan Gemini tier ume da vrati `503 high demand` ili `429`. Aplikacija tada odmah prelazi na rezervni model.
 - `GEMINI_THINKING` (podrazumevano `low`) smanjuje „razmišljanje“ modela radi bržeg odgovora.
 
@@ -92,6 +94,7 @@ src/
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── api/chat/route.ts       # „Pitaj kuvara“ (tekstualni stream)
 │   ├── api/sync/route.ts       # sinhronizacija između uređaja (Redis hash)
+│   ├── api/usage/route.ts      # dnevna potrošnja AI poziva
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
 ├── components/
@@ -119,7 +122,8 @@ src/
     ├── use-speech.ts           # prepoznavanje govora (sr-RS)
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
-    ├── auth.ts                 # HMAC sesija, rate limit
+    ├── auth.ts                 # HMAC sesija
+    ├── limits.ts               # PIN zaključavanje + dnevni AI limit (Redis ili memorija)
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
     ├── timers.ts               # globalni tajmeri + prepoznavanje trajanja u tekstu

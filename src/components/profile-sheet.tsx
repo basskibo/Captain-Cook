@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Check, Plus, X } from "lucide-react";
 import { EMPTY_PROFILE, type TasteProfile } from "@/lib/types";
@@ -135,6 +135,15 @@ export function ProfileSheet({
   onChange: (update: (p: TasteProfile) => TasteProfile) => void;
 }) {
   const set = <K extends keyof TasteProfile>(k: K, v: TasteProfile[K]) => onChange((p) => ({ ...p, [k]: v }));
+  const [usage, setUsage] = useState<{ used: number; limit: number } | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    fetch("/api/usage", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((u) => setUsage(u?.limit ? u : null))
+      .catch(() => {});
+  }, [open]);
   const customAllergies = profile.allergies.filter((a) => !ALLERGIES.includes(a));
 
   return (
@@ -220,6 +229,24 @@ export function ProfileSheet({
           <Label hint="Ako ništa ne označiš, podrazumeva se standardna kuhinja (šporet i rerna).">Oprema u kuhinji</Label>
           <ToggleChips options={EQUIPMENT} value={profile.equipment} onChange={(v) => set("equipment", v)} />
         </section>
+
+        {usage && (
+          <section className="rounded-2xl bg-surface-2/60 p-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">AI pozivi danas</span>
+              <span className="tabular-nums text-muted">
+                {usage.used} / {usage.limit}
+              </span>
+            </div>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
+              <div
+                className={`h-full rounded-full ${usage.used >= usage.limit ? "bg-danger" : "bg-accent-gradient"}`}
+                style={{ width: `${Math.min(100, (usage.used / usage.limit) * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-muted">Limit štiti tvoju AI kvotu i resetuje se u ponoć.</p>
+          </section>
+        )}
 
         <button type="button" onClick={() => onChange(() => EMPTY_PROFILE)} className="w-full py-2 text-sm font-medium text-muted">
           Resetuj na podrazumevano
