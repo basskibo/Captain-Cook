@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Check, ChefHat, Lightbulb, Share2, Users } from "lucide-react";
+import { Check, ChefHat, Lightbulb, Share2, ShoppingCart, Users } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { Sheet } from "./sheet";
 import { HeartButton, Meta } from "./recipe-card";
@@ -25,7 +25,19 @@ function recipeToText(r: Recipe) {
   ].join("\n");
 }
 
-function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: boolean; onToggleSave: () => void }) {
+function RecipeBody({
+  recipe,
+  saved,
+  onToggleSave,
+  shoppingNames,
+  onAddToShopping,
+}: {
+  recipe: Recipe;
+  saved: boolean;
+  onToggleSave: () => void;
+  shoppingNames: Set<string>;
+  onAddToShopping: () => void;
+}) {
   const [done, setDone] = useState<Set<number>>(new Set());
   const [cooking, setCooking] = useState(false);
   const progress = recipe.steps.length ? done.size / recipe.steps.length : 0;
@@ -141,9 +153,25 @@ function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: bo
           ))}
         </ul>
         {missing.length > 0 && (
-          <p className="mt-2 text-sm text-warn">
-            Treba dokupiti: {missing.map((i) => i.item).join(", ")}
-          </p>
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-warn-soft p-3 pl-4">
+            <p className="text-sm text-warn">
+              Fali: <b>{missing.map((i) => i.item).join(", ")}</b>
+            </p>
+            {missing.every((i) => shoppingNames.has(i.item.toLowerCase())) ? (
+              <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-ok">
+                <Check className="h-4 w-4" strokeWidth={3} /> Na listi
+              </span>
+            ) : (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.94 }}
+                onClick={onAddToShopping}
+                className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-warn px-3 text-sm font-semibold text-white"
+              >
+                <ShoppingCart className="h-4 w-4" /> Na listu
+              </motion.button>
+            )}
+          </div>
         )}
       </section>
 
@@ -204,11 +232,15 @@ export function RecipeDetail({
   saved,
   onClose,
   onToggleSave,
+  shoppingNames,
+  onAddToShopping,
 }: {
   recipe: Recipe | null;
   saved: boolean;
   onClose: () => void;
   onToggleSave: () => void;
+  shoppingNames: Set<string>;
+  onAddToShopping: () => void;
 }) {
   // Zadrži poslednji recept da sadržaj ostane vidljiv tokom animacije zatvaranja.
   const [shown, setShown] = useState(recipe);
@@ -216,7 +248,14 @@ export function RecipeDetail({
 
   return (
     <Sheet open={!!recipe} onClose={onClose} full label={shown?.name ?? "Recept"}>
-      {shown && <RecipeBody key={shown.id} recipe={shown} saved={saved} onToggleSave={onToggleSave} />}
+      {shown && <RecipeBody
+          key={shown.id}
+          recipe={shown}
+          saved={saved}
+          onToggleSave={onToggleSave}
+          shoppingNames={shoppingNames}
+          onAddToShopping={onAddToShopping}
+        />}
     </Sheet>
   );
 }

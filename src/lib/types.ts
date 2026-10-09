@@ -41,3 +41,11 @@ export interface GenerateRequest {
   note?: string;
   exclude?: string[];
 }
+
+export interface ShoppingItem {
+  id: string;
+  name: string;
+  amount?: string;
+  recipe?: string;
+  done: boolean;
+}

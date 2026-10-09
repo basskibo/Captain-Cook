@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookHeart, ChefHat, Lock, RefreshCw, ShoppingBasket, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookHeart, ChefHat, Lock, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
-import type { Recipe } from "@/lib/types";
+import type { Recipe, ShoppingItem } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
 import { readNdjson } from "@/lib/ndjson";
 import { PantryView } from "./pantry-view";
@@ -14,14 +14,16 @@ import { CookingAnimation } from "./cooking-animation";
 import { RecipeDetail } from "./recipe-detail";
 import { ScanSheet, type ScanInput } from "./scan-sheet";
 import { TimerTray } from "./timer-tray";
+import { ShoppingView } from "./shopping-view";
 import { useTimers } from "@/lib/timers";
 
-type Tab = "pantry" | "recipes" | "saved";
+type Tab = "pantry" | "recipes" | "saved" | "shopping";
 
 const TABS: { id: Tab; label: string; icon: typeof ShoppingBasket }[] = [
   { id: "pantry", label: "Namirnice", icon: ShoppingBasket },
   { id: "recipes", label: "Predlozi", icon: UtensilsCrossed },
   { id: "saved", label: "Sačuvano", icon: BookHeart },
+  { id: "shopping", label: "Kupovina", icon: ShoppingCart },
 ];
 
 const LOADING_LINES = [
@@ -49,6 +51,21 @@ function guessEmoji(name: string) {
     [/salat|rukol|blitv|kelj|zelje/, "🥬"],
     [/čili|ljut/, "🌶️"],
     [/sos|preliv/, "🥫"],
+    [/banan/, "🍌"],
+    [/ruzmarin|timijan|majčin|lovor|nana|mirođij|kim\b|kurkum|cimet|začin/, "🌿"],
+    [/jaj/, "🥚"],
+    [/mlek|jogurt|kefir/, "🥛"],
+    [/pirinač|riža/, "🍚"],
+    [/testenin|špaget|makaron/, "🍝"],
+    [/krompir/, "🥔"],
+    [/luk/, "🧅"],
+    [/paradajz/, "🍅"],
+    [/piletin|piletina|ćuretin|batak|krilc/, "🍗"],
+    [/šunk|slanin|kobasic|viršl/, "🥓"],
+    [/pečurk|šampinjon|vrganj/, "🍄"],
+    [/limun|limet/, "🍋"],
+    [/jabuk/, "🍎"],
+    [/med\b/, "🍯"],
   ];
   return map.find(([re]) => re.test(n))?.[1] ?? "🥄";
 }
@@ -59,6 +76,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [selectedList, setSelectedList] = usePersistentState<string[]>("cc.selected", []);
   const [results, setResults] = usePersistentState<Recipe[]>("cc.results", []);
   const [saved, setSaved] = usePersistentState<Recipe[]>("cc.saved", []);
+  const [shopping, setShopping] = usePersistentState<ShoppingItem[]>("cc.shopping", []);
   const [options, setOptions, optionsHydrated] = usePersistentState<CookOptions>("cc.options", {
     mealType: "rucak",
     maxTime: 30,
@@ -125,6 +143,33 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const removeCustom = (id: string) => {
     setCustom((c) => c.filter((i) => i.id !== id));
     setSelectedList((l) => l.filter((x) => x !== id));
+  };
+
+  const shoppingNames = useMemo(
+    () => new Set(shopping.filter((i) => !i.done).map((i) => i.name.toLowerCase())),
+    [shopping],
+  );
+
+  const addToShopping = (r: Recipe) => {
+    const missing = r.ingredients.filter((i) => !i.have && !shoppingNames.has(i.item.toLowerCase()));
+    if (!missing.length) return;
+    setShopping((list) => [
+      ...missing.map((i) => ({ id: crypto.randomUUID(), name: i.item, amount: i.amount, recipe: r.name, done: false })),
+      ...list,
+    ]);
+  };
+
+  /** Kupljene namirnice → označene u frižideru (postojeće se mapiraju, nove postaju „moje“). */
+  const moveToPantry = (names: string[]) => {
+    const byName = new Map([...lookup.values()].map((i) => [i.name.toLowerCase(), i.id]));
+    const ids: string[] = [];
+    const extra: string[] = [];
+    for (const n of names) {
+      const id = byName.get(n.toLowerCase());
+      if (id) ids.push(id);
+      else extra.push(n);
+    }
+    addMany(ids, extra);
   };
 
   const toggleSave = (r: Recipe) =>
@@ -333,6 +378,10 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
               </div>
             )}
 
+            {tab === "shopping" && (
+              <ShoppingView items={shopping} onChange={setShopping} onMoveToPantry={moveToPantry} />
+            )}
+
             {tab === "saved" && (
               <div className="space-y-3 pt-2 pb-32">
                 {saved.length === 0 ? (
@@ -398,7 +447,14 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           {TABS.map((t) => {
             const active = tab === t.id;
             const Icon = t.icon;
-            const badge = t.id === "recipes" ? results.length : t.id === "saved" ? saved.length : count;
+            const badge =
+              t.id === "recipes"
+                ? results.length
+                : t.id === "saved"
+                  ? saved.length
+                  : t.id === "shopping"
+                    ? shopping.filter((i) => !i.done).length
+                    : count;
             return (
               <button
                 key={t.id}
@@ -458,6 +514,8 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         saved={openRecipe ? savedIds.has(openRecipe.id) : false}
         onClose={() => setOpenRecipe(null)}
         onToggleSave={() => openRecipe && toggleSave(openRecipe)}
+        shoppingNames={shoppingNames}
+        onAddToShopping={() => openRecipe && addToShopping(openRecipe)}
       />
     </div>
   );
