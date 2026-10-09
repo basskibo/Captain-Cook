@@ -536,6 +536,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         onToggleSave={() => openRecipe && toggleSave(openRecipe)}
         shoppingNames={shoppingNames}
         onAddToShopping={addToShopping}
+        profileNote={profileSummary(profile)}
       />
     </div>
   );

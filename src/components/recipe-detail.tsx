@@ -9,6 +9,7 @@ import { Sheet } from "./sheet";
 import { HeartButton, Meta } from "./recipe-card";
 import { DishImage } from "./dish-image";
 import { CookingMode } from "./cooking-mode";
+import { ChefChat } from "./chef-chat";
 
 function porcija(n: number) {
   const last = n % 10;
@@ -40,12 +41,14 @@ function RecipeBody({
   onToggleSave,
   shoppingNames,
   onAddToShopping,
+  profileNote,
 }: {
   recipe: Recipe;
   saved: boolean;
   onToggleSave: () => void;
   shoppingNames: Set<string>;
   onAddToShopping: (scaled: Recipe) => void;
+  profileNote?: string;
 }) {
   const [servings, setServings] = useState(recipe.servings);
   // Recept sa količinama preračunatim za izabrani broj porcija.
@@ -276,6 +279,8 @@ function RecipeBody({
         </section>
       )}
 
+      <ChefChat recipe={scaled} profileNote={profileNote} />
+
       <CookingMode recipe={scaled} open={cooking} onClose={() => setCooking(false)} />
     </div>
   );
@@ -288,6 +293,7 @@ export function RecipeDetail({
   onToggleSave,
   shoppingNames,
   onAddToShopping,
+  profileNote,
 }: {
   recipe: Recipe | null;
   saved: boolean;
@@ -295,6 +301,7 @@ export function RecipeDetail({
   onToggleSave: () => void;
   shoppingNames: Set<string>;
   onAddToShopping: (scaled: Recipe) => void;
+  profileNote?: string;
 }) {
   // Zadrži poslednji recept da sadržaj ostane vidljiv tokom animacije zatvaranja.
   const [shown, setShown] = useState(recipe);
@@ -309,6 +316,7 @@ export function RecipeDetail({
           onToggleSave={onToggleSave}
           shoppingNames={shoppingNames}
           onAddToShopping={onAddToShopping}
+          profileNote={profileNote}
         />}
     </Sheet>
   );

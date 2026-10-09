@@ -26,6 +26,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | ⚖️ **Broj porcija** | Promeni porcije u receptu i količine se odmah preračunaju (razlomci, opsezi, lepo zaokruženi grami), bez novog AI poziva. |
 | 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
 | 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, deljenje (WhatsApp/Viber) i „Prebaci kupljeno u frižider“. |
+| 💬 **Pitaj kuvara** | Chat u receptu: „nemam pavlaku, čime da zamenim?“, „može li u airfryer?“. Kuvar zna recept i tvoj ukus, odgovori stižu uživo. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
 
@@ -78,6 +79,7 @@ src/
 │   ├── api/auth/route.ts       # PIN provera i sesija (GET / POST / DELETE)
 │   ├── api/recipes/route.ts    # recepti kao NDJSON stream (zaštićeno sesijom, zod validacija)
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
+│   ├── api/chat/route.ts       # „Pitaj kuvara“ (tekstualni stream)
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
 ├── components/
@@ -92,6 +94,7 @@ src/
 │   ├── timer-tray.tsx          # aktivni tajmeri
 │   ├── shopping-view.tsx       # lista za kupovinu
 │   ├── profile-sheet.tsx       # „Moj ukus“ profil
+│   ├── chef-chat.tsx           # chat sa kuvarom u receptu
 │   ├── recipe-card.tsx · recipe-detail.tsx
 │   ├── dish-image.tsx          # fotografija jela sa fade-in efektom
 │   └── sheet.tsx               # bottom sheet (drag-to-close)
@@ -99,6 +102,7 @@ src/
     ├── ai/provider.ts          # Gemini / Anthropic / mock: streaming, slike, fallback
     ├── ai/recipes.ts           # prompt i validacija recepata
     ├── ai/scan.ts              # prepoznavanje namirnica
+    ├── ai/chat.ts              # chat o receptu
     ├── ndjson.ts               # čitanje NDJSON strima u browseru
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
