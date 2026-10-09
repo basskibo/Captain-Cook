@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "cc_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 dana
@@ -71,4 +72,13 @@ export function registerFailure(ip: string) {
 
 export function clearFailures(ip: string) {
   attempts.delete(ip);
+}
+
+/** Da li zahtev ima validnu sesiju (za zaštićene API rute). */
+export async function isAuthed() {
+  return verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value);
+}
+
+export function unauthorized() {
+  return Response.json({ error: "Nisi prijavljen" }, { status: 401 });
 }

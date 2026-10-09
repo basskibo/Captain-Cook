@@ -1,7 +1,6 @@
-import { cookies } from "next/headers";
 import { z } from "zod";
-import { SESSION_COOKIE, verifySessionToken } from "@/lib/auth";
-import { generateRecipes } from "@/lib/ai";
+import { isAuthed, unauthorized } from "@/lib/auth";
+import { generateRecipes } from "@/lib/ai/recipes";
 
 export const maxDuration = 60;
 
@@ -16,10 +15,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const token = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!verifySessionToken(token)) {
-    return Response.json({ error: "Nisi prijavljen" }, { status: 401 });
-  }
+  if (!(await isAuthed())) return unauthorized();
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {

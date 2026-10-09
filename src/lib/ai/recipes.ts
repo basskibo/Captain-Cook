@@ -1,7 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import type { GenerateRequest, Recipe } from "./types";
-import { findDishPhoto } from "./images";
+import type { GenerateRequest, Recipe } from "../types";
+import { findDishPhoto } from "../images";
+import { extractJson, generateText } from "./provider";
 
 const MEAL_LABELS: Record<GenerateRequest["mealType"], string> = {
   dorucak: "doručak",
@@ -79,86 +80,6 @@ function buildPrompt(req: GenerateRequest, count: number) {
   return lines.filter(Boolean).join("\n");
 }
 
-function extractJson(text: string) {
-  const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("AI nije vratio JSON");
-  return JSON.parse(cleaned.slice(start, end + 1));
-}
-
-const RETRYABLE = new Set([429, 500, 503, 504]);
-
-async function callGeminiModel(model: string, key: string, prompt: string) {
-  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json", temperature: 0.9 },
-    }),
-  });
-}
-
-async function callGemini(prompt: string) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("GEMINI_API_KEY nije podešen");
-  // Besplatni tier često vraća 503/429 — pokušaj ponovo, pa pređi na rezervni model.
-  const models = [
-    process.env.GEMINI_MODEL || "gemini-flash-latest",
-    process.env.GEMINI_FALLBACK_MODEL || "gemini-flash-lite-latest",
-  ];
-
-  let lastError = "";
-  for (const model of [...new Set(models)]) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await callGeminiModel(model, key, prompt);
-      if (res.ok) {
-        const data = await res.json();
-        const parts: { text?: string; thought?: boolean }[] = data?.candidates?.[0]?.content?.parts ?? [];
-        return parts
-          .filter((p) => !p.thought)
-          .map((p) => p.text ?? "")
-          .join("");
-      }
-      lastError = `Gemini (${model}) greška ${res.status}: ${(await res.text()).slice(0, 300)}`;
-      console.warn("[gemini]", lastError);
-      if (!RETRYABLE.has(res.status)) break;
-      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-    }
-  }
-  throw new Error(lastError);
-}
-
-async function callAnthropic(prompt: string) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error("ANTHROPIC_API_KEY nije podešen");
-  const model = process.env.ANTHROPIC_MODEL || "claude-haiku-5-5";
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": key,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) throw new Error(`Anthropic greška ${res.status}: ${(await res.text()).slice(0, 300)}`);
-  const data = await res.json();
-  const text = (data?.content ?? [])
-    .filter((b: { type: string }) => b.type === "text")
-    .map((b: { text: string }) => b.text)
-    .join("");
-  return text;
-}
-
 // Za lokalni razvoj bez API ključa: AI_PROVIDER=mock
 function mockResponse(req: GenerateRequest, count: number) {
   const base = req.ingredients.slice(0, 3);
@@ -182,17 +103,14 @@ function mockResponse(req: GenerateRequest, count: number) {
   });
 }
 
-function provider() {
-  const p = process.env.AI_PROVIDER?.toLowerCase();
-  if (p === "gemini" || p === "anthropic" || p === "mock") return p;
-  return process.env.GEMINI_API_KEY ? "gemini" : "anthropic";
-}
-
 export async function generateRecipes(req: GenerateRequest, count = 3): Promise<Recipe[]> {
   const prompt = buildPrompt(req, count);
-  const p = provider();
-  const raw =
-    p === "mock" ? mockResponse(req, count) : p === "gemini" ? await callGemini(prompt) : await callAnthropic(prompt);
+  const raw = await generateText({
+    system: SYSTEM_PROMPT,
+    messages: [{ role: "user", parts: [{ text: prompt }] }],
+    json: true,
+    mock: () => mockResponse(req, count),
+  });
   const parsed = responseSchema.parse(extractJson(raw));
   return Promise.all(
     parsed.recipes.map(async ({ imageQuery, ...r }) => ({

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Camera, Check, Plus, Search, X } from "lucide-react";
 import { CATEGORIES, type Ingredient } from "@/lib/ingredients";
 
 const MINE = "moje";
@@ -70,6 +70,7 @@ export function PantryView({
   onAddCustom,
   onRemoveCustom,
   onClear,
+  onScanImage,
 }: {
   custom: Ingredient[];
   selected: Set<string>;
@@ -77,6 +78,7 @@ export function PantryView({
   onAddCustom: (name: string) => void;
   onRemoveCustom: (id: string) => void;
   onClear: () => void;
+  onScanImage: (file: File) => void;
 }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("sve");
@@ -119,12 +121,13 @@ export function PantryView({
     <div className="pb-36">
       {/* Pretraga + dodavanje */}
       <div className="sticky top-0 z-10 -mx-4 bg-bg/85 px-4 pt-2 pb-3 backdrop-blur-xl">
+        <div className="flex gap-2">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             submitCustom();
           }}
-          className="flex h-12 items-center gap-2 rounded-2xl border border-border bg-surface pr-1.5 pl-3.5 focus-within:border-accent"
+          className="flex h-12 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-border bg-surface pr-1.5 pl-3.5 focus-within:border-accent"
         >
           <Search className="h-5 w-5 shrink-0 text-muted" />
           <input
@@ -155,6 +158,24 @@ export function PantryView({
             )}
           </AnimatePresence>
         </form>
+        <label
+          className="bg-accent-gradient grid h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-2xl text-white shadow-[0_8px_20px_-8px_var(--glow)] active:scale-95"
+          aria-label="Slikaj frižider"
+          title="Slikaj frižider"
+        >
+          <Camera className="h-5 w-5" />
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onScanImage(file);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        </div>
 
         {/* Filteri kategorija */}
         {!query && (

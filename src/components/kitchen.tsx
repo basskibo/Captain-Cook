@@ -11,6 +11,7 @@ import { OptionsSheet, defaultMealType, type CookOptions } from "./options-sheet
 import { RecipeCard } from "./recipe-card";
 import { CookingAnimation } from "./cooking-animation";
 import { RecipeDetail } from "./recipe-detail";
+import { ScanSheet, type ScanInput } from "./scan-sheet";
 
 type Tab = "pantry" | "recipes" | "saved";
 
@@ -67,6 +68,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [loading, setLoading] = useState(false);
   const [loadingLine, setLoadingLine] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [scanInput, setScanInput] = useState<ScanInput | null>(null);
 
   const selected = useMemo(() => new Set(selectedList), [selectedList]);
   const savedIds = useMemo(() => new Set(saved.map((r) => r.id)), [saved]);
@@ -88,10 +90,9 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
     return selectedList.map((id) => map.get(id)).filter((e): e is string => !!e && e !== "🥄");
   }, [selectedList, custom]);
 
-  const names = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const i of ALL_INGREDIENTS) map.set(i.id, i.name);
-    for (const i of custom) map.set(i.id, i.name);
+  const lookup = useMemo(() => {
+    const map = new Map<string, Ingredient>();
+    for (const i of [...ALL_INGREDIENTS, ...custom]) map.set(i.id, i);
     return map;
   }, [custom]);
 
@@ -105,6 +106,15 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
     const id = clean.toLowerCase();
     setCustom((c) => (c.some((i) => i.id === id) ? c : [{ id, name: clean, emoji: guessEmoji(clean) }, ...c]));
     setSelectedList((l) => (l.includes(id) ? l : [...l, id]));
+  };
+
+  const addMany = (ids: string[], extra: string[]) => {
+    const newCustom = extra
+      .map((name) => ({ id: name.toLowerCase(), name, emoji: guessEmoji(name) }))
+      .filter((i) => !lookup.has(i.id));
+    if (newCustom.length) setCustom((c) => [...newCustom, ...c]);
+    const all = [...ids, ...extra.map((e) => e.toLowerCase())];
+    setSelectedList((l) => [...l, ...all.filter((id) => !l.includes(id))]);
   };
 
   const removeCustom = (id: string) => {
@@ -128,7 +138,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ingredients: selectedList.map((id) => names.get(id) ?? id),
+          ingredients: selectedList.map((id) => lookup.get(id)?.name ?? id),
           mealType: options.mealType,
           maxTime: options.maxTime,
           servings: options.servings,
@@ -198,6 +208,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                 onAddCustom={addCustom}
                 onRemoveCustom={removeCustom}
                 onClear={() => setSelectedList([])}
+                onScanImage={(file) => setScanInput({ kind: "image", file })}
               />
             )}
 
@@ -387,6 +398,16 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         onChange={setOptions}
         onCook={() => cook()}
         count={count}
+      />
+
+      <ScanSheet
+        input={scanInput}
+        onClose={() => setScanInput(null)}
+        onAdd={addMany}
+        lookup={lookup}
+        selected={selected}
+        customNames={custom.map((c) => c.name)}
+        onUnauthorized={onLocked}
       />
 
       <RecipeDetail

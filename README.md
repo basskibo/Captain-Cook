@@ -15,6 +15,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | | |
 |---|---|
 | 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada posle 5 pogrešnih pokušaja. AI troše samo oni koji znaju PIN. |
+| 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
 | ⚙️ **Podešavanja obroka** | Doručak / ručak / večera / užina / desert (automatski po dobu dana), vreme pripreme, broj porcija, „samo ono što imam“ i posebne želje. |
 | 🍳 **Animacija kuvanja** | Dok AI razmišlja, tvoje namirnice skaču iz tiganja iznad plamena. |
@@ -53,7 +54,8 @@ npm run dev
 
 **Napomene**
 - Promena `APP_PIN`-a automatski odjavljuje sve uređaje.
-- Besplatan Gemini tier ume da vrati `503 high demand`. Aplikacija tada ponovi zahtev, pa pređe na rezervni model.
+- Besplatan Gemini tier ume da vrati `503 high demand` ili `429`. Aplikacija tada odmah prelazi na rezervni model.
+- `GEMINI_THINKING` (podrazumevano `low`) smanjuje „razmišljanje“ modela radi bržeg odgovora.
 
 ## ▲ Deploy na Vercel
 
@@ -68,6 +70,7 @@ src/
 ├── app/
 │   ├── api/auth/route.ts       # PIN provera i sesija (GET / POST / DELETE)
 │   ├── api/recipes/route.ts    # generisanje recepata (zaštićeno sesijom, zod validacija)
+│   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
 ├── components/
@@ -76,12 +79,16 @@ src/
 │   ├── kitchen.tsx             # glavni ekran, tabovi, generisanje
 │   ├── pantry-view.tsx         # izbor i dodavanje namirnica
 │   ├── options-sheet.tsx       # podešavanja obroka
+│   ├── scan-sheet.tsx          # skeniranje frižidera
 │   ├── cooking-animation.tsx   # animacija tiganja dok AI radi
 │   ├── recipe-card.tsx · recipe-detail.tsx
 │   ├── dish-image.tsx          # fotografija jela sa fade-in efektom
 │   └── sheet.tsx               # bottom sheet (drag-to-close)
 └── lib/
-    ├── ai.ts                   # Gemini / Anthropic + retry i fallback
+    ├── ai/provider.ts          # Gemini / Anthropic / mock: streaming, slike, fallback
+    ├── ai/recipes.ts           # prompt i validacija recepata
+    ├── ai/scan.ts              # prepoznavanje namirnica
+    ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
     ├── auth.ts                 # HMAC sesija, rate limit
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
