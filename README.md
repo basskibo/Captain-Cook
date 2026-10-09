@@ -28,10 +28,11 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
 | 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, deljenje (WhatsApp/Viber) i „Prebaci kupljeno u frižider“. |
 | 💬 **Pitaj kuvara** | Chat u receptu: „nemam pavlaku, čime da zamenim?“, „može li u airfryer?“. Kuvar zna recept i tvoj ukus, odgovori stižu uživo. |
+| ☁️ **Sinhronizacija** | Opciono preko Upstash Redis-a: izmene na jednom uređaju stižu na drugi (pri otvaranju i povratku u aplikaciju). Novija izmena pobeđuje. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
 
-Namirnice, podešavanja, predlozi i sačuvani recepti čuvaju se lokalno u browseru (`localStorage`), bez baze.
+Podaci se čuvaju lokalno u browseru (`localStorage`). Uz opcionu Upstash Redis bazu, namirnice, sačuvani recepti, lista za kupovinu i profil se **sinhronizuju između uređaja** (telefon ↔ laptop).
 
 ## 🚀 Pokretanje lokalno
 
@@ -57,6 +58,7 @@ npm run dev
 | `GEMINI_FALLBACK_MODEL` | | Rezervni model kad je glavni preopterećen. Podrazumevano `gemini-flash-lite-latest` |
 | `ANTHROPIC_API_KEY` | ✅* | Ključ sa <https://console.anthropic.com> |
 | `ANTHROPIC_MODEL` | | Podrazumevano `claude-haiku-5-5` |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | | Upstash Redis za sinhronizaciju (postavlja ih Vercel integracija). Rade i `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. |
 | `PEXELS_API_KEY` | | Prave fotografije jela. Besplatan ključ: <https://www.pexels.com/api/>. Bez njega se prikazuje emoji. |
 
 \* potreban je ključ za bar jednog provajdera.
@@ -72,6 +74,14 @@ npm run dev
 2. **Settings → Environment Variables:** dodaj `APP_PIN`, `SESSION_SECRET`, `AI_PROVIDER`, API ključ i (opciono) `PEXELS_API_KEY`.
 3. Deploy 🎉 i na telefonu otvori sajt → *Share → Add to Home Screen*.
 
+### ☁️ Sinhronizacija (opciono, besplatno)
+
+1. Na Vercelu: **Storage → Marketplace → Upstash (Redis) → Create**, besplatni plan.
+2. Poveži bazu sa projektom. Vercel sam dodaje `KV_REST_API_URL` i `KV_REST_API_TOKEN`.
+3. Redeploy. U zaglavlju se pojavljuje zeleni oblak ☁️ kad sinhronizacija radi.
+
+Za lokalni rad prekopiraj te dve vrednosti u `.env`.
+
 ## 🗂️ Struktura
 
 ```
@@ -81,6 +91,7 @@ src/
 │   ├── api/recipes/route.ts    # recepti kao NDJSON stream (zaštićeno sesijom, zod validacija)
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── api/chat/route.ts       # „Pitaj kuvara“ (tekstualni stream)
+│   ├── api/sync/route.ts       # sinhronizacija između uređaja (Redis hash)
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
 ├── components/
@@ -112,8 +123,10 @@ src/
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
     ├── timers.ts               # globalni tajmeri + prepoznavanje trajanja u tekstu
+    ├── redis.ts                # minimalni Upstash REST klijent
+    ├── sync.ts                 # klijentska sinhronizacija + status
     ├── types.ts
-    └── use-persistent-state.ts # useState + localStorage
+    └── use-persistent-state.ts # useState + localStorage (+ opciona sinhronizacija)
 ```
 
 ## 📜 Skripte

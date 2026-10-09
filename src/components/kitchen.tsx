@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookHeart, ChefHat, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookHeart, ChefHat, Cloud, CloudOff, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
 import { EMPTY_PROFILE, type Recipe, type ShoppingItem, type TasteProfile } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
@@ -17,6 +17,7 @@ import { TimerTray } from "./timer-tray";
 import { ShoppingView } from "./shopping-view";
 import { ProfileSheet, profileSummary } from "./profile-sheet";
 import { useTimers } from "@/lib/timers";
+import { useSyncStatus } from "@/lib/sync";
 
 type Tab = "pantry" | "recipes" | "saved" | "shopping";
 
@@ -73,12 +74,12 @@ function guessEmoji(name: string) {
 
 export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [tab, setTab] = useState<Tab>("pantry");
-  const [custom, setCustom] = usePersistentState<Ingredient[]>("cc.custom", []);
-  const [selectedList, setSelectedList] = usePersistentState<string[]>("cc.selected", []);
+  const [custom, setCustom] = usePersistentState<Ingredient[]>("cc.custom", [], { sync: true });
+  const [selectedList, setSelectedList] = usePersistentState<string[]>("cc.selected", [], { sync: true });
   const [results, setResults] = usePersistentState<Recipe[]>("cc.results", []);
-  const [saved, setSaved] = usePersistentState<Recipe[]>("cc.saved", []);
-  const [shopping, setShopping] = usePersistentState<ShoppingItem[]>("cc.shopping", []);
-  const [profile, setProfile] = usePersistentState<TasteProfile>("cc.profile", EMPTY_PROFILE);
+  const [saved, setSaved] = usePersistentState<Recipe[]>("cc.saved", [], { sync: true });
+  const [shopping, setShopping] = usePersistentState<ShoppingItem[]>("cc.shopping", [], { sync: true });
+  const [profile, setProfile] = usePersistentState<TasteProfile>("cc.profile", EMPTY_PROFILE, { sync: true });
   const [profileOpen, setProfileOpen] = useState(false);
   const [options, setOptions, optionsHydrated] = usePersistentState<CookOptions>("cc.options", {
     mealType: "rucak",
@@ -95,6 +96,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [scanInput, setScanInput] = useState<ScanInput | null>(null);
   const timers = useTimers();
+  const syncStatus = useSyncStatus();
 
   const selected = useMemo(() => new Set(selectedList), [selectedList]);
   const savedIds = useMemo(() => new Set(saved.map((r) => r.id)), [saved]);
@@ -247,7 +249,17 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
             <ChefHat className="h-5 w-5" />
           </div>
           <div className="flex-1">
-            <p className="text-xs font-medium text-muted">Captain Cook</p>
+            <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
+              Captain Cook
+              {syncStatus !== "off" && (
+                <span
+                  title={syncStatus === "error" ? "Sinhronizacija nije uspela" : "Sinhronizovano između uređaja"}
+                  className={syncStatus === "error" ? "text-danger" : syncStatus === "saving" ? "animate-pulse text-accent" : "text-ok"}
+                >
+                  {syncStatus === "error" ? <CloudOff className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
+                </span>
+              )}
+            </p>
             <h1 className="font-display text-xl leading-tight font-bold">{TABS.find((t) => t.id === tab)?.label}</h1>
           </div>
           <button
