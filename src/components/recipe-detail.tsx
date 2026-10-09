@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Check, Lightbulb, Share2, Users } from "lucide-react";
+import { Check, ChefHat, Lightbulb, Share2, Users } from "lucide-react";
 import type { Recipe } from "@/lib/types";
 import { Sheet } from "./sheet";
 import { HeartButton, Meta } from "./recipe-card";
 import { DishImage } from "./dish-image";
+import { CookingMode } from "./cooking-mode";
 
 function recipeToText(r: Recipe) {
   return [
@@ -26,6 +27,7 @@ function recipeToText(r: Recipe) {
 
 function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: boolean; onToggleSave: () => void }) {
   const [done, setDone] = useState<Set<number>>(new Set());
+  const [cooking, setCooking] = useState(false);
   const progress = recipe.steps.length ? done.size / recipe.steps.length : 0;
   const have = recipe.ingredients.filter((i) => i.have);
   const missing = recipe.ingredients.filter((i) => !i.have);
@@ -114,6 +116,15 @@ function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: bo
         </span>
       </div>
 
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.97 }}
+        onClick={() => setCooking(true)}
+        className="bg-accent-gradient mt-5 flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-lg font-semibold text-white shadow-[0_14px_30px_-10px_var(--glow)]"
+      >
+        <ChefHat className="h-5 w-5" /> Počni kuvanje
+      </motion.button>
+
       <section className="mt-7">
         <h3 className="mb-3 font-display text-xl font-semibold">Sastojci</h3>
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
@@ -182,6 +193,8 @@ function RecipeBody({ recipe, saved, onToggleSave }: { recipe: Recipe; saved: bo
           </p>
         </section>
       )}
+
+      <CookingMode recipe={recipe} open={cooking} onClose={() => setCooking(false)} />
     </div>
   );
 }

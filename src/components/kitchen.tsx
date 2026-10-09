@@ -13,6 +13,8 @@ import { RecipeCard } from "./recipe-card";
 import { CookingAnimation } from "./cooking-animation";
 import { RecipeDetail } from "./recipe-detail";
 import { ScanSheet, type ScanInput } from "./scan-sheet";
+import { TimerTray } from "./timer-tray";
+import { useTimers } from "@/lib/timers";
 
 type Tab = "pantry" | "recipes" | "saved";
 
@@ -71,6 +73,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [loadingLine, setLoadingLine] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [scanInput, setScanInput] = useState<ScanInput | null>(null);
+  const timers = useTimers();
 
   const selected = useMemo(() => new Set(selectedList), [selectedList]);
   const savedIds = useMemo(() => new Set(saved.map((r) => r.id)), [saved]);
@@ -360,6 +363,11 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
 
       {/* Donja traka: CTA + navigacija */}
       <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4">
+        {timers.length > 0 && (
+          <div className="pointer-events-auto mb-3">
+            <TimerTray />
+          </div>
+        )}
         <AnimatePresence>
           {tab === "pantry" && count > 0 && (
             <motion.button

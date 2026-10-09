@@ -22,6 +22,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 🍳 **Animacija kuvanja** | Dok AI razmišlja, tvoje namirnice skaču iz tiganja iznad plamena. |
 | 📸 **Fotografije jela** | AI daje engleski naziv jela, a uz recept stiže prava fotografija sa Pexels-a (ilustrativna, sa potpisom autora). |
 | 📖 **Recepti** | Sastojci (šta imaš / šta treba dokupiti), koraci koje štikliraš dok kuvaš, savet šefa, „Još predloga“ bez ponavljanja. |
+| 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
 
@@ -82,6 +83,8 @@ src/
 │   ├── options-sheet.tsx       # podešavanja obroka
 │   ├── scan-sheet.tsx          # skeniranje frižidera
 │   ├── cooking-animation.tsx   # animacija tiganja dok AI radi
+│   ├── cooking-mode.tsx        # režim kuvanja korak po korak
+│   ├── timer-tray.tsx          # aktivni tajmeri
 │   ├── recipe-card.tsx · recipe-detail.tsx
 │   ├── dish-image.tsx          # fotografija jela sa fade-in efektom
 │   └── sheet.tsx               # bottom sheet (drag-to-close)
@@ -94,6 +97,7 @@ src/
     ├── auth.ts                 # HMAC sesija, rate limit
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
+    ├── timers.ts               # globalni tajmeri + prepoznavanje trajanja u tekstu
     ├── types.ts
     └── use-persistent-state.ts # useState + localStorage
 ```
