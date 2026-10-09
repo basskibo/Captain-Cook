@@ -23,6 +23,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 🍳 **Animacija kuvanja** | Dok AI razmišlja, tvoje namirnice skaču iz tiganja iznad plamena. |
 | 📸 **Fotografije jela** | AI daje engleski naziv jela, a uz recept stiže prava fotografija sa Pexels-a (ilustrativna, sa potpisom autora). |
 | 📖 **Recepti** | Sastojci (šta imaš / šta treba dokupiti), koraci koje štikliraš dok kuvaš, savet šefa, „Još predloga“ bez ponavljanja. |
+| ⚖️ **Broj porcija** | Promeni porcije u receptu i količine se odmah preračunaju (razlomci, opsezi, lepo zaokruženi grami), bez novog AI poziva. |
 | 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
 | 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, deljenje (WhatsApp/Viber) i „Prebaci kupljeno u frižider“. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
@@ -99,6 +100,7 @@ src/
     ├── ai/recipes.ts           # prompt i validacija recepata
     ├── ai/scan.ts              # prepoznavanje namirnica
     ├── ndjson.ts               # čitanje NDJSON strima u browseru
+    ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
     ├── auth.ts                 # HMAC sesija, rate limit
     ├── images.ts               # Pexels pretraga fotografija jela

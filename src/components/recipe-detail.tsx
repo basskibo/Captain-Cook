@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "motion/react";
-import { Check, ChefHat, Lightbulb, Share2, ShoppingCart, Users } from "lucide-react";
+import { Check, ChefHat, Lightbulb, Minus, Plus, Share2, ShoppingCart } from "lucide-react";
 import type { Recipe } from "@/lib/types";
+import { scaleAmount } from "@/lib/scale";
 import { Sheet } from "./sheet";
 import { HeartButton, Meta } from "./recipe-card";
 import { DishImage } from "./dish-image";
 import { CookingMode } from "./cooking-mode";
+
+function porcija(n: number) {
+  const last = n % 10;
+  const lastTwo = n % 100;
+  if (last === 1 && lastTwo !== 11) return "porcija";
+  if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return "porcije";
+  return "porcija";
+}
 
 function recipeToText(r: Recipe) {
   return [
     `${r.emoji} ${r.name}`,
     r.description,
     "",
-    `⏱ ${r.timeMinutes} min · ${r.difficulty} · ${r.servings} porcije`,
+    `⏱ ${r.timeMinutes} min · ${r.difficulty} · ${r.servings} ${porcija(r.servings)}`,
     "",
     "Sastojci:",
     ...r.ingredients.map((i) => `• ${i.item}${i.amount ? ` — ${i.amount}` : ""}`),
@@ -36,13 +45,23 @@ function RecipeBody({
   saved: boolean;
   onToggleSave: () => void;
   shoppingNames: Set<string>;
-  onAddToShopping: () => void;
+  onAddToShopping: (scaled: Recipe) => void;
 }) {
+  const [servings, setServings] = useState(recipe.servings);
+  // Recept sa količinama preračunatim za izabrani broj porcija.
+  const scaled = useMemo<Recipe>(() => {
+    const factor = servings / recipe.servings;
+    return {
+      ...recipe,
+      servings,
+      ingredients: recipe.ingredients.map((i) => ({ ...i, amount: scaleAmount(i.amount, factor) })),
+    };
+  }, [recipe, servings]);
   const [done, setDone] = useState<Set<number>>(new Set());
   const [cooking, setCooking] = useState(false);
   const progress = recipe.steps.length ? done.size / recipe.steps.length : 0;
-  const have = recipe.ingredients.filter((i) => i.have);
-  const missing = recipe.ingredients.filter((i) => !i.have);
+  const have = scaled.ingredients.filter((i) => i.have);
+  const missing = scaled.ingredients.filter((i) => !i.have);
 
   const toggleStep = (n: number) =>
     setDone((prev) => {
@@ -53,7 +72,7 @@ function RecipeBody({
     });
 
   const share = async () => {
-    const text = recipeToText(recipe);
+    const text = recipeToText(scaled);
     try {
       if (navigator.share) await navigator.share({ title: recipe.name, text });
       else await navigator.clipboard.writeText(text);
@@ -123,9 +142,6 @@ function RecipeBody({
       <p className="mt-2 text-muted">{recipe.description}</p>
       <div className="mt-4 flex flex-wrap items-center gap-1.5">
         <Meta recipe={recipe} />
-        <span className="flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-xs font-medium text-muted">
-          <Users className="h-3.5 w-3.5" /> {recipe.servings}
-        </span>
       </div>
 
       <motion.button
@@ -138,7 +154,32 @@ function RecipeBody({
       </motion.button>
 
       <section className="mt-7">
-        <h3 className="mb-3 font-display text-xl font-semibold">Sastojci</h3>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="font-display text-xl font-semibold">Sastojci</h3>
+          <div className="flex items-center gap-1 rounded-full bg-surface-2 p-1">
+            <button
+              type="button"
+              onClick={() => setServings((n) => Math.max(1, n - 1))}
+              disabled={servings <= 1}
+              aria-label="Manje porcija"
+              className="grid h-8 w-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+            >
+              <Minus className="h-4 w-4" />
+            </button>
+            <span className="min-w-[5.5rem] text-center text-sm font-semibold tabular-nums">
+              {servings} {porcija(servings)}
+            </span>
+            <button
+              type="button"
+              onClick={() => setServings((n) => Math.min(20, n + 1))}
+              disabled={servings >= 20}
+              aria-label="Više porcija"
+              className="grid h-8 w-8 place-items-center rounded-full bg-surface disabled:opacity-40"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
         <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
           {[...have, ...missing].map((i, n) => (
             <li key={n} className="flex items-center gap-3 px-4 py-3">
@@ -148,10 +189,23 @@ function RecipeBody({
                 {i.have ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : <span className="text-xs font-bold">+</span>}
               </span>
               <span className="flex-1">{i.item}</span>
-              <span className="text-sm text-muted">{i.amount}</span>
+              <motion.span
+                key={i.amount}
+                initial={servings !== recipe.servings ? { opacity: 0, y: -4 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                className={`text-sm tabular-nums ${servings !== recipe.servings ? "font-semibold text-accent" : "text-muted"}`}
+              >
+                {i.amount}
+              </motion.span>
             </li>
           ))}
         </ul>
+        {servings !== recipe.servings && (
+          <p className="mt-2 text-xs text-muted">
+            Količine su preračunate za {servings} {porcija(servings)}. Brojevi u koracima pripreme važe za originalnih{" "}
+            {recipe.servings}.
+          </p>
+        )}
         {missing.length > 0 && (
           <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-warn-soft p-3 pl-4">
             <p className="text-sm text-warn">
@@ -165,7 +219,7 @@ function RecipeBody({
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.94 }}
-                onClick={onAddToShopping}
+                onClick={() => onAddToShopping(scaled)}
                 className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-warn px-3 text-sm font-semibold text-white"
               >
                 <ShoppingCart className="h-4 w-4" /> Na listu
@@ -222,7 +276,7 @@ function RecipeBody({
         </section>
       )}
 
-      <CookingMode recipe={recipe} open={cooking} onClose={() => setCooking(false)} />
+      <CookingMode recipe={scaled} open={cooking} onClose={() => setCooking(false)} />
     </div>
   );
 }
@@ -240,7 +294,7 @@ export function RecipeDetail({
   onClose: () => void;
   onToggleSave: () => void;
   shoppingNames: Set<string>;
-  onAddToShopping: () => void;
+  onAddToShopping: (scaled: Recipe) => void;
 }) {
   // Zadrži poslednji recept da sadržaj ostane vidljiv tokom animacije zatvaranja.
   const [shown, setShown] = useState(recipe);
