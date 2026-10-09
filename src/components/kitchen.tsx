@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookHeart, ChefHat, Lock, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookHeart, ChefHat, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
-import type { Recipe, ShoppingItem } from "@/lib/types";
+import { EMPTY_PROFILE, type Recipe, type ShoppingItem, type TasteProfile } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
 import { readNdjson } from "@/lib/ndjson";
 import { PantryView } from "./pantry-view";
@@ -15,6 +15,7 @@ import { RecipeDetail } from "./recipe-detail";
 import { ScanSheet, type ScanInput } from "./scan-sheet";
 import { TimerTray } from "./timer-tray";
 import { ShoppingView } from "./shopping-view";
+import { ProfileSheet, profileSummary } from "./profile-sheet";
 import { useTimers } from "@/lib/timers";
 
 type Tab = "pantry" | "recipes" | "saved" | "shopping";
@@ -77,6 +78,8 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [results, setResults] = usePersistentState<Recipe[]>("cc.results", []);
   const [saved, setSaved] = usePersistentState<Recipe[]>("cc.saved", []);
   const [shopping, setShopping] = usePersistentState<ShoppingItem[]>("cc.shopping", []);
+  const [profile, setProfile] = usePersistentState<TasteProfile>("cc.profile", EMPTY_PROFILE);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [options, setOptions, optionsHydrated] = usePersistentState<CookOptions>("cc.options", {
     mealType: "rucak",
     maxTime: 30,
@@ -199,6 +202,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           strict: options.strict,
           note: options.note.trim() || undefined,
           exclude: more ? results.map((r) => r.name).slice(0, 30) : undefined,
+          profile,
         }),
       });
       if (res.status === 401) {
@@ -246,6 +250,15 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
             <p className="text-xs font-medium text-muted">Captain Cook</p>
             <h1 className="font-display text-xl leading-tight font-bold">{TABS.find((t) => t.id === tab)?.label}</h1>
           </div>
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            aria-label="Moj ukus"
+            className="relative grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted active:text-text"
+          >
+            <SlidersHorizontal className="h-4.5 w-4.5" />
+            {profileSummary(profile) && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />}
+          </button>
           <button
             type="button"
             onClick={logout}
@@ -497,7 +510,14 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         onChange={setOptions}
         onCook={() => cook()}
         count={count}
+        profileSummary={profileSummary(profile)}
+        onEditProfile={() => {
+          setOptionsOpen(false);
+          setProfileOpen(true);
+        }}
       />
+
+      <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} profile={profile} onChange={setProfile} />
 
       <ScanSheet
         input={scanInput}

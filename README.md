@@ -17,6 +17,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada posle 5 pogrešnih pokušaja. AI troše samo oni koji znaju PIN. |
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
+| 🧑‍🍳 **Moj ukus** | Trajni profil: ishrana (posno, vege, keto…), alergije (nikad u receptu), šta ne voliš, ljutina, omiljene kuhinje i oprema (airfryer, rerna…). |
 | ⚙️ **Podešavanja obroka** | Doručak / ručak / večera / užina / desert (automatski po dobu dana), vreme pripreme, broj porcija, „samo ono što imam“ i posebne želje. |
 | ⚡ **Streaming** | Recepti se pojavljuju jedan po jedan, čim ih AI napiše. Prvi stiže za ~2 s. |
 | 🍳 **Animacija kuvanja** | Dok AI razmišlja, tvoje namirnice skaču iz tiganja iznad plamena. |
@@ -89,6 +90,7 @@ src/
 │   ├── cooking-mode.tsx        # režim kuvanja korak po korak
 │   ├── timer-tray.tsx          # aktivni tajmeri
 │   ├── shopping-view.tsx       # lista za kupovinu
+│   ├── profile-sheet.tsx       # „Moj ukus“ profil
 │   ├── recipe-card.tsx · recipe-detail.tsx
 │   ├── dish-image.tsx          # fotografija jela sa fade-in efektom
 │   └── sheet.tsx               # bottom sheet (drag-to-close)

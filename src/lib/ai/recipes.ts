@@ -62,6 +62,20 @@ Pravila:
 - Predlozi treba da budu međusobno različiti (tehnika, ukus, kuhinja).
 - Količine prilagodi broju porcija.`;
 
+function profileLines(p: GenerateRequest["profile"]) {
+  if (!p) return [];
+  return [
+    p.diet ? `Ishrana: ${p.diet} — STROGO poštuj.` : "",
+    p.allergies.length
+      ? `ALERGIJE (nikada ne koristi, ni u tragovima, ni kao zamenu): ${p.allergies.join(", ")}.`
+      : "",
+    p.dislikes.length ? `Ne voli (izbegavaj): ${p.dislikes.join(", ")}.` : "",
+    p.spice === "blago" ? "Bez ljutine." : p.spice === "ljuto" ? "Voli ljuto — slobodno začini jače." : "",
+    p.cuisines.length ? `Omiljene kuhinje (daj im prednost): ${p.cuisines.join(", ")}.` : "",
+    p.equipment.length ? `Oprema koju ima: šporet, ${p.equipment.join(", ")}. Ne koristi drugu opremu.` : "",
+  ];
+}
+
 function buildPrompt(req: GenerateRequest, count: number) {
   const lines = [
     `Namirnice koje imam: ${req.ingredients.join(", ")}.`,
@@ -72,6 +86,7 @@ function buildPrompt(req: GenerateRequest, count: number) {
       ? "Koristi SAMO namirnice koje imam (plus so, biber, voda, ulje). Ne dodaji ništa drugo."
       : "Prednost daj mojim namirnicama; smeš dodati najviše 2-3 uobičajene namirnice koje nemam (označi ih sa have: false).",
     req.note ? `Dodatne želje: ${req.note}` : "",
+    ...profileLines(req.profile),
     req.exclude?.length ? `Nemoj predlagati ova jela (već sam ih video): ${req.exclude.join(", ")}.` : "",
     `Predloži tačno ${count} recepta.`,
   ];

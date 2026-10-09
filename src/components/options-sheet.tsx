@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Minus, Plus, Sparkles } from "lucide-react";
+import { ChevronRight, Minus, Plus, SlidersHorizontal, Sparkles } from "lucide-react";
 import type { MealType } from "@/lib/types";
 import { Sheet } from "./sheet";
 
@@ -48,6 +48,8 @@ export function OptionsSheet({
   onChange,
   onCook,
   count,
+  profileSummary,
+  onEditProfile,
 }: {
   open: boolean;
   onClose: () => void;
@@ -55,6 +57,8 @@ export function OptionsSheet({
   onChange: (o: CookOptions) => void;
   onCook: () => void;
   count: number;
+  profileSummary: string;
+  onEditProfile: () => void;
 }) {
   const set = <K extends keyof CookOptions>(k: K, v: CookOptions[K]) => onChange({ ...options, [k]: v });
 
@@ -63,6 +67,21 @@ export function OptionsSheet({
       <div className="px-5 pb-2">
         <h2 className="font-display text-2xl font-bold">Šta spremamo?</h2>
         <p className="mt-1 text-sm text-muted">Imaš {count} namirnica. Podesi detalje i pusti šefa da radi.</p>
+
+        <button
+          type="button"
+          onClick={onEditProfile}
+          className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-surface-2/60 p-3 text-left"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-accent/15 text-accent">
+            <SlidersHorizontal className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">Moj ukus</span>
+            <span className="block truncate text-xs text-muted">{profileSummary || "Dijeta, alergije, šta ne voliš…"}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted" />
+        </button>
 
         <div className="mt-6">
           <Label>Obrok</Label>

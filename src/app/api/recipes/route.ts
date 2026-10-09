@@ -12,6 +12,16 @@ const bodySchema = z.object({
   strict: z.boolean(),
   note: z.string().max(300).optional(),
   exclude: z.array(z.string().max(120)).max(30).optional(),
+  profile: z
+    .object({
+      diet: z.string().max(40),
+      allergies: z.array(z.string().max(40)).max(20),
+      dislikes: z.array(z.string().max(40)).max(30),
+      cuisines: z.array(z.string().max(40)).max(12),
+      equipment: z.array(z.string().max(40)).max(12),
+      spice: z.enum(["blago", "srednje", "ljuto"]),
+    })
+    .optional(),
 });
 
 export async function POST(request: Request) {

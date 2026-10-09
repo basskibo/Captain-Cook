@@ -40,6 +40,7 @@ export interface GenerateRequest {
   strict: boolean;
   note?: string;
   exclude?: string[];
+  profile?: TasteProfile;
 }
 
 export interface ShoppingItem {
@@ -49,3 +50,21 @@ export interface ShoppingItem {
   recipe?: string;
   done: boolean;
 }
+
+export interface TasteProfile {
+  diet: string;
+  allergies: string[];
+  dislikes: string[];
+  cuisines: string[];
+  equipment: string[];
+  spice: "blago" | "srednje" | "ljuto";
+}
+
+export const EMPTY_PROFILE: TasteProfile = {
+  diet: "",
+  allergies: [],
+  dislikes: [],
+  cuisines: [],
+  equipment: [],
+  spice: "srednje",
+};
