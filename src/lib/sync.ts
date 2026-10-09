@@ -98,3 +98,24 @@ export function useSyncStatus() {
     () => "off" as SyncStatus,
   );
 }
+
+function isEmptyValue(v: unknown) {
+  return v == null || (Array.isArray(v) && v.length === 0);
+}
+
+export { isEmptyValue };
+
+/**
+ * Spajanje pri PRVOJ sinhronizaciji uređaja (kad nema vremensku oznaku):
+ * liste → unija (po `id` ili po vrednosti), ostalo → serverska vrednost.
+ * Tako se ne gube podaci koje je uređaj imao pre uključivanja sinhronizacije.
+ */
+export function mergeFirstSync(local: unknown, remoteValue: unknown): unknown {
+  if (Array.isArray(local) && Array.isArray(remoteValue)) {
+    const keyOf = (x: unknown) =>
+      x && typeof x === "object" && "id" in x ? `id:${String((x as { id: unknown }).id)}` : `v:${JSON.stringify(x)}`;
+    const seen = new Set(remoteValue.map(keyOf));
+    return [...remoteValue, ...local.filter((x) => !seen.has(keyOf(x)))];
+  }
+  return isEmptyValue(remoteValue) ? local : remoteValue;
+}

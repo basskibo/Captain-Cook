@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRemote, pushKey, subscribeKey, type SyncEntry } from "./sync";
+import { fetchRemote, isEmptyValue, mergeFirstSync, pushKey, subscribeKey, type SyncEntry } from "./sync";
 
 /**
  * useState koji se čuva u localStorage, a uz `sync: true` i sinhronizuje između uređaja.
@@ -40,13 +40,34 @@ export function usePersistentState<T>(key: string, initial: T, opts?: { sync?: b
     void fetchRemote().then((data) => {
       if (!data) return;
       const entry = data[key];
-      if (entry && entry.t > localT()) apply(entry);
-      else if (hasLocal && (!entry || localT() > entry.t)) {
-        // Lokalni podaci su noviji (ili server još nema ništa) → pošalji ih.
-        const t = localT() || Date.now();
-        localStorage.setItem(tKey, String(t));
-        pushKey(key, JSON.parse(localStorage.getItem(key)!), t);
+      const lt = localT();
+      const local = hasLocal ? (JSON.parse(localStorage.getItem(key)!) as unknown) : undefined;
+
+      if (lt === 0) {
+        // Prva sinhronizacija ovog uređaja: spoji, nemoj prepisati.
+        if (!entry) {
+          if (!isEmptyValue(local)) {
+            const t = Date.now();
+            localStorage.setItem(tKey, String(t));
+            pushKey(key, local, t);
+          }
+          return;
+        }
+        const merged = mergeFirstSync(local, entry.v);
+        if (JSON.stringify(merged) === JSON.stringify(entry.v)) {
+          apply(entry);
+        } else {
+          const t = Date.now();
+          localStorage.setItem(tKey, String(t));
+          localStorage.setItem(key, JSON.stringify(merged));
+          setValue(merged as T);
+          pushKey(key, merged, t);
+        }
+        return;
       }
+
+      if (entry && entry.t > lt) apply(entry);
+      else if (local !== undefined && (!entry || lt > entry.t)) pushKey(key, local, lt);
     });
     return unsubscribe;
   }, [key, tKey, sync]);

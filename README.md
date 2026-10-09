@@ -28,7 +28,8 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem. |
 | 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, deljenje (WhatsApp/Viber) i „Prebaci kupljeno u frižider“. |
 | 💬 **Pitaj kuvara** | Chat u receptu: „nemam pavlaku, čime da zamenim?“, „može li u airfryer?“. Kuvar zna recept i tvoj ukus, odgovori stižu uživo. |
-| ☁️ **Sinhronizacija** | Opciono preko Upstash Redis-a: izmene na jednom uređaju stižu na drugi (pri otvaranju i povratku u aplikaciju). Novija izmena pobeđuje. |
+| ☁️ **Sinhronizacija** | Opciono preko Upstash Redis-a: izmene na jednom uređaju stižu na drugi (pri otvaranju i povratku u aplikaciju). Novija izmena pobeđuje; pri prvom povezivanju uređaja liste se spajaju, pa se postojeći podaci ne gube. |
+| 📴 **Offline** | Service worker kešira aplikaciju: sačuvani recepti, lista za kupovinu i tajmeri rade i bez interneta. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
 
@@ -87,6 +88,8 @@ Za lokalni rad prekopiraj te dve vrednosti u `.env`.
 ## 🗂️ Struktura
 
 ```
+public/
+└── sw.js                       # service worker (offline)
 src/
 ├── app/
 │   ├── api/auth/route.ts       # PIN provera i sesija (GET / POST / DELETE)
@@ -119,6 +122,7 @@ src/
     ├── ai/scan.ts              # prepoznavanje namirnica
     ├── ai/chat.ts              # chat o receptu
     ├── ndjson.ts               # čitanje NDJSON strima u browseru
+    ├── use-online.ts           # online/offline status
     ├── use-speech.ts           # prepoznavanje govora (sr-RS)
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja

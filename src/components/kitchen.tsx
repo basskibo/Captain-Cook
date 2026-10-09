@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookHeart, ChefHat, Cloud, CloudOff, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookHeart, ChefHat, Cloud, CloudOff, WifiOff, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
 import { EMPTY_PROFILE, type Recipe, type ShoppingItem, type TasteProfile } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
@@ -18,6 +18,7 @@ import { ShoppingView } from "./shopping-view";
 import { ProfileSheet, profileSummary } from "./profile-sheet";
 import { useTimers } from "@/lib/timers";
 import { useSyncStatus } from "@/lib/sync";
+import { useOnline } from "@/lib/use-online";
 
 type Tab = "pantry" | "recipes" | "saved" | "shopping";
 
@@ -97,6 +98,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
   const [scanInput, setScanInput] = useState<ScanInput | null>(null);
   const timers = useTimers();
   const syncStatus = useSyncStatus();
+  const online = useOnline();
 
   const selected = useMemo(() => new Set(selectedList), [selectedList]);
   const savedIds = useMemo(() => new Set(saved.map((r) => r.id)), [saved]);
@@ -281,6 +283,24 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           </button>
         </div>
       </header>
+
+      <AnimatePresence>
+        {!online && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden px-4"
+          >
+            <div className="mb-2 flex items-center gap-3 rounded-2xl bg-warn-soft px-4 py-3 text-sm">
+              <WifiOff className="h-4 w-4 shrink-0 text-warn" />
+              <span>
+                <b>Offline si.</b> Sačuvani recepti, lista za kupovinu i tajmeri rade. Za nove predloge treba internet.
+              </span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <main className="px-4">
         <AnimatePresence mode="wait" initial={false}>
