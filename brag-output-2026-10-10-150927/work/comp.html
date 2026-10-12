@@ -1,0 +1,126 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Geist:wght@400;500;600&display=block" rel="stylesheet">
+<script src="data.js"></script>
+<style>
+:root{--bg:#f7f3ee;--text:#1d1a17;--muted:#7a7168;--accent:#f0562b;--accent2:#ff9f43}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:Geist,sans-serif;color:var(--text)}
+#stage{position:absolute;inset:0;overflow:hidden;background:var(--bg)}
+.glow{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55}
+#g1{width:900px;height:900px;background:radial-gradient(circle,#ffb79a 0%,rgba(255,183,154,0) 70%)}
+#g2{width:800px;height:800px;background:radial-gradient(circle,#ffd7a8 0%,rgba(255,215,168,0) 70%)}
+.grad{background-image:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+#hook{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#emojis{display:flex;gap:44px;font-size:112px;height:150px;margin-bottom:28px}
+#emojis span{display:inline-block}
+#title{font-family:'Bricolage Grotesque';font-weight:800;font-size:220px;letter-spacing:-0.045em;line-height:1;white-space:nowrap}
+#title span{display:inline-block}
+.cap{position:absolute;left:150px;top:0;height:1080px;width:900px;display:flex;flex-direction:column;justify-content:center}
+.kick{display:inline-flex;align-self:flex-start;align-items:center;gap:14px;padding:12px 26px 12px 14px;border-radius:999px;background:rgba(240,86,43,.10);border:2px solid rgba(240,86,43,.22);color:var(--accent);font-weight:600;font-size:30px;margin-bottom:34px}
+.kick b{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:12px;color:#fff;font-size:24px;background-image:linear-gradient(135deg,var(--accent),var(--accent2))}
+.head{font-family:'Bricolage Grotesque';font-weight:800;font-size:118px;line-height:1.02;letter-spacing:-0.045em}
+.head .l{display:block}
+#phone{position:absolute;left:1180px;top:65px;width:454px;height:950px;transform-origin:50% 50%}
+.body{position:absolute;inset:0;border-radius:72px;background:#1b1714;box-shadow:0 60px 120px -30px rgba(80,35,10,.35),0 20px 50px -20px rgba(80,35,10,.25),inset 0 0 0 2px #3a332e}
+.screen{position:absolute;left:14px;top:14px;width:390px;height:844px;transform:scale(1.0923);transform-origin:0 0;border-radius:56px;overflow:hidden;background:var(--bg)}
+#sb{position:absolute;left:0;top:0;width:390px;height:47px;font-family:Geist;font-weight:600;font-size:16px}
+#sb .time{position:absolute;left:46px;top:15px}
+#sb .isl{position:absolute;left:50%;top:11px;width:122px;height:35px;margin-left:-61px;border-radius:20px;background:#000}
+#sb .icons{position:absolute;right:34px;top:17px;display:flex;gap:6px;align-items:center}
+#rec{position:absolute;left:0;top:47px;width:390px;height:797px;display:block}
+#tap{position:absolute;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;background:rgba(29,26,23,.16);border:2px solid rgba(255,255,255,.7);box-shadow:0 2px 10px rgba(0,0,0,.12);opacity:0}
+#homebar{position:absolute;left:50%;bottom:8px;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:#1d1a17;opacity:.85}
+#outro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#icon{width:190px;height:190px;border-radius:44px;box-shadow:0 30px 60px -18px rgba(240,86,43,.55)}
+#oname{font-family:'Bricolage Grotesque';font-weight:800;font-size:170px;letter-spacing:-0.045em;line-height:1;margin-top:46px}
+#otag{font-family:'Bricolage Grotesque';font-weight:700;font-size:64px;letter-spacing:-0.03em;margin-top:22px}
+#ofoot{margin-top:46px;font-size:30px;font-weight:500;color:var(--muted);display:flex;gap:18px;align-items:center}
+#ofoot i{width:7px;height:7px;border-radius:50%;background:var(--accent);display:inline-block}
+</style></head><body>
+<div id="stage">
+  <div class="glow" id="g1"></div><div class="glow" id="g2"></div>
+  <div id="hook">
+    <div id="emojis"><span>🧅</span><span>🍅</span><span>🫑</span><span>🥚</span><span>🧀</span></div>
+    <div id="title"><span>Šta&nbsp;</span><span>da&nbsp;</span><span class="grad">skuvam?</span></div>
+  </div>
+  <div class="cap" id="c1"><div class="kick"><b>1</b>Namirnice</div><div class="head"><span class="l">Označi</span><span class="l grad">šta imaš.</span></div></div>
+  <div class="cap" id="c2"><div class="kick"><b>2</b>AI kuvar</div><div class="head"><span class="l">Listam bakine</span><span class="l grad">sveske…</span></div></div>
+  <div class="cap" id="c3"><div class="kick"><b>3</b>Recepti</div><div class="head"><span class="l">Tri jela od</span><span class="l grad">onoga što imaš.</span></div></div>
+  <div class="cap" id="c4"><div class="kick"><b>4</b>Režim kuvanja</div><div class="head"><span class="l">Piše <span class="grad">„8 minuta“?</span></span><span class="l">Evo tajmera.</span></div></div>
+  <div id="phone"><div class="body"></div>
+    <div class="screen">
+      <div id="sb"><span class="time">9:41</span><span class="isl"></span>
+        <span class="icons"><svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="#1d1a17"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="#1d1a17"/><rect x="10" y="3" width="3" height="9" rx="1" fill="#1d1a17"/><rect x="15" y="0" width="3" height="12" rx="1" fill="#1d1a17"/></svg>
+        <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="#1d1a17" opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2" fill="#1d1a17"/><rect x="25" y="4.5" width="1.6" height="4" rx=".8" fill="#1d1a17" opacity=".4"/></svg></span></div>
+      <img id="rec">
+      <div id="tap"></div>
+      
+    </div>
+  </div>
+  <div id="outro">
+    <img id="icon" src="icon.svg">
+    <div id="oname">Captain Cook</div>
+    <div id="otag">Lični AI kuvar <span class="grad">u džepu.</span></div>
+    <div id="ofoot">Web aplikacija<i></i>dodaj na početni ekran</div>
+  </div>
+</div>
+<script>
+const $=id=>document.getElementById(id);
+const cl=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lin=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const back=x=>{const c=1.7,c3=c+1;return 1+c3*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+// video time -> recording time
+const SEG=[[0,9.0,-2.1],[9.0,14.2,-0.6],[14.2,99,1.2]];
+const recT=t=>{for(const [a,b,o] of SEG) if(t<b) return Math.max(0,t+o); return t};
+function frameAt(rt){let best=FR[0];for(const f of FR){if(f[0]<=rt)best=f;else break}return best}
+function inOut(el,t,a,b,dy=40){ // enter at a, exit at b
+  const i=eo(lin(t,a,a+.45)), o=eio(lin(t,b,b+.3));
+  const op=i*(1-o); el.style.opacity=op; el.style.visibility=op<=0.001?'hidden':'visible';
+  return {i,o};
+}
+function cap(el,t,a,b){
+  const {i,o}=inOut(el,t,a,b);
+  const k=el.querySelector('.kick'); k.style.transform=`translateY(${(1-i)*30}px)`;
+  [...el.querySelectorAll('.head .l')].forEach((l,n)=>{const ii=eo(lin(t,a+.08+n*.1,a+.6+n*.1));l.style.transform=`translateY(${(1-ii)*50-o*30}px)`;l.style.opacity=ii});
+}
+window.render=async function(t){
+  // background glows drift
+  $('g1').style.transform=`translate(${-260+Math.sin(t*.35)*60}px,${-300+Math.cos(t*.3)*40}px)`;
+  $('g2').style.transform=`translate(${1300+Math.cos(t*.28)*70}px,${520+Math.sin(t*.33)*50}px)`;
+  // hook
+  const hk=$('hook'); const ho=eio(lin(t,2.2,2.55));
+  hk.style.opacity=1-ho; hk.style.visibility=ho>=1?'hidden':'visible';
+  hk.style.transform=`translateY(${-ho*60}px) scale(${1-ho*.06})`;
+  [...$('emojis').children].forEach((e,n)=>{const p=lin(t,.08+n*.17,.48+n*.17);const s=p<=0?0:back(p);e.style.transform=`translateY(${(1-p)*40+Math.sin(t*3+n)*4}px) scale(${s}) rotate(${(1-p)*-25}deg)`;e.style.opacity=cl(p*3)});
+  [...$('title').children].forEach((w,n)=>{const p=lin(t,.95+n*.13,1.35+n*.13);w.style.opacity=cl(p*2.5);w.style.transform=`translateY(${(1-eo(p))*70}px) scale(${p<=0?.8:.8+.2*back(p)})`});
+  // captions
+  cap($('c1'),t,2.85,8.25); cap($('c2'),t,8.6,9.95); cap($('c3'),t,10.3,14.0); cap($('c4'),t,14.35,17.75);
+  // phone
+  const pin=eo(lin(t,2.5,3.05)), pout=eio(lin(t,17.8,18.3));
+  const ph=$('phone'); const po=pin*(1-pout);
+  ph.style.opacity=po; ph.style.visibility=po<=0.001?'hidden':'visible';
+  ph.style.transform=`translateY(${(1-pin)*260+pout*120}px) rotate(${(1-pin)*4}deg) scale(${.96+.04*pin-pout*.04})`;
+  if(po>0){
+    const rt=recT(t); const f=frameAt(rt); const img=$('rec');
+    if(img.dataset.f!==f[1]){img.dataset.f=f[1]; img.src=f[1]; await img.decode().catch(()=>{});}
+    $('sb').style.background=f[2];
+    // tap ripple
+    const tp=$('tap'); tp.style.opacity=0;
+    for(const [tt,x,y] of TAPS){const d=rt-tt; if(d>-0.12&&d<0.45){
+      const g=d<0?1+d/0.12:0; const p=cl(d/0.45);
+      tp.style.left=x+'px'; tp.style.top=(y+47)+'px';
+      tp.style.opacity=d<0?g*.9:(1-p)*.9; tp.style.transform=`scale(${d<0?.7+.2*g:.9+p*.5})`;}}
+  }
+  // outro
+  const ou=$('outro'); const oi=lin(t,18.25,19.4);
+  ou.style.visibility=t<18.2?'hidden':'visible';
+  const ic=lin(t,18.25,18.75); $('icon').style.transform=`scale(${ic<=0?0:back(ic)}) rotate(${(1-eo(ic))*-12}deg)`; $('icon').style.opacity=cl(ic*3);
+  const n=lin(t,18.45,18.95); $('oname').style.opacity=n; $('oname').style.transform=`translateY(${(1-eo(n))*50}px)`;
+  const g=lin(t,18.7,19.2); $('otag').style.opacity=g; $('otag').style.transform=`translateY(${(1-eo(g))*40}px)`;
+  const fz=lin(t,18.95,19.45); $('ofoot').style.opacity=fz; $('ofoot').style.transform=`translateY(${(1-eo(fz))*30}px)`;
+};
+window.ready=(async()=>{await document.fonts.load('800 100px "Bricolage Grotesque"');await document.fonts.load('700 100px "Bricolage Grotesque"');await document.fonts.load('500 30px Geist');await document.fonts.load('600 30px Geist');await document.fonts.ready;await $('icon').decode();})();
+</script></body></html>

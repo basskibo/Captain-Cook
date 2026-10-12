@@ -111,7 +111,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
           aria-label={`Kuvanje: ${recipe.name}`}
         >
           {/* Zaglavlje */}
-          <div className="pt-safe px-4">
+          <div className="pt-safe px-4 lg:mx-auto lg:w-full lg:max-w-3xl">
             <div className="flex min-h-14 items-center gap-3 pb-2">
               <button
                 type="button"
@@ -171,7 +171,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden px-4"
+                className="overflow-hidden px-4 lg:mx-auto lg:w-full lg:max-w-3xl"
               >
                 <ul className="mt-3 grid max-h-[35dvh] grid-cols-2 gap-x-4 gap-y-1.5 overflow-y-auto rounded-2xl bg-surface p-4 text-sm">
                   {recipe.ingredients.map((i, n) => (
@@ -186,7 +186,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
           </AnimatePresence>
 
           {/* Korak — prevuci levo/desno */}
-          <div className="relative flex-1 overflow-hidden">
+          <div className="relative flex-1 overflow-hidden lg:mx-auto lg:w-full lg:max-w-3xl">
             <AnimatePresence mode="popLayout" initial={false} custom={direction}>
               <motion.div
                 key={step}
@@ -212,7 +212,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
                 <span className="bg-accent-gradient mb-5 grid h-14 w-14 place-items-center rounded-2xl font-display text-2xl font-bold text-white">
                   {step + 1}
                 </span>
-                <p className="font-display text-[26px] leading-snug font-medium text-balance">{recipe.steps[step]}</p>
+                <p className="font-display text-[26px] leading-snug font-medium text-balance lg:text-4xl">{recipe.steps[step]}</p>
 
                 {durations.length > 0 && (
                   <div className="mt-6 space-y-2">
@@ -252,7 +252,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
 
           {/* Aktivni tajmeri */}
           {timers.length > 0 && (
-            <div className="px-4 pb-3">
+            <div className="px-4 pb-3 lg:mx-auto lg:w-full lg:max-w-3xl">
               <TimerTray />
             </div>
           )}
@@ -318,7 +318,7 @@ export function CookingMode({ recipe, open, onClose }: { recipe: Recipe; open: b
           </AnimatePresence>
 
           {/* Navigacija */}
-          <div className="pb-safe flex gap-3 px-4 pt-1">
+          <div className="pb-safe flex gap-3 px-4 pt-1 lg:mx-auto lg:w-full lg:max-w-3xl lg:pb-8">
             <button
               type="button"
               onClick={() => go(step - 1)}

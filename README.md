@@ -32,6 +32,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 📴 **Offline** | Service worker kešira aplikaciju: sačuvani recepti, lista za kupovinu i tajmeri rade i bez interneta. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
+| 🖥️ **Desktop raspored** | Na širokom ekranu: bočni meni, namirnice u dve kolone sa panelom „U frižideru“, recepti u mreži, prozori umesto panela odozdo i recept u dve kolone. |
 
 Podaci se čuvaju lokalno u browseru (`localStorage`). Uz opcionu Upstash Redis bazu, namirnice, sačuvani recepti, lista za kupovinu i profil se **sinhronizuju između uređaja** (telefon ↔ laptop).
 
@@ -132,6 +133,7 @@ src/
     ├── ai/scan.ts              # prepoznavanje namirnica
     ├── ai/chat.ts              # chat o receptu
     ├── ndjson.ts               # čitanje NDJSON strima u browseru
+    ├── use-media-query.ts      # mobilni / desktop prikaz
     ├── use-online.ts           # online/offline status
     ├── use-speech.ts           # prepoznavanje govora (sr-RS)
     ├── scale.ts                # preračunavanje količina za broj porcija

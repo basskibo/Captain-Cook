@@ -1,0 +1,14 @@
+import { chromium } from 'playwright-core';
+import fs from 'fs';
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args:['--force-device-scale-factor=3','--window-size=600,1100'] });
+const ctx = await b.newContext({ viewport:null });
+const p = await ctx.newPage(); const cdp=await ctx.newCDPSession(p);
+await cdp.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:0,mobile:true});
+await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+await p.goto('http://localhost:3001/'); await p.waitForTimeout(1500);
+let got=0;
+cdp.on('Page.screencastFrame', async f=>{ if(!got++) fs.writeFileSync('rt.jpg',Buffer.from(f.data,'base64')); cdp.send('Page.screencastFrameAck',{sessionId:f.sessionId}); });
+await cdp.send('Page.startScreencast',{format:'jpeg',quality:90,maxWidth:1170,maxHeight:2532});
+console.log(await p.evaluate(()=>[innerWidth,innerHeight,devicePixelRatio]));
+await p.waitForTimeout(1000); console.log('frames', got);
+await b.close();

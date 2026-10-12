@@ -71,7 +71,7 @@ export function RecipeCard({
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onOpen()}
-      className="cursor-pointer overflow-hidden rounded-3xl border border-border bg-surface outline-none focus-visible:border-accent"
+      className="flex h-full cursor-pointer flex-col overflow-hidden rounded-3xl border border-border bg-surface transition-[border-color,box-shadow] outline-none hover:border-accent/40 hover:shadow-[0_18px_40px_-24px_var(--glow)] focus-visible:border-accent"
     >
       {recipe.image ? (
         <>
@@ -87,14 +87,14 @@ export function RecipeCard({
               {recipe.emoji}
             </span>
           </div>
-          <div className="p-4 pt-3.5">
+          <div className="flex flex-1 flex-col p-4 pt-3.5">
             <h3 className="font-display text-lg leading-tight font-semibold">{recipe.name}</h3>
             <p className="mt-1 line-clamp-2 text-sm text-muted">{recipe.description}</p>
             <Footer recipe={recipe} missing={missing} />
           </div>
         </>
       ) : (
-        <div className="p-4">
+        <div className="flex flex-1 flex-col p-4">
           <div className="flex gap-3.5">
             <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-surface-2 text-4xl">{recipe.emoji}</div>
             <div className="min-w-0 flex-1">
@@ -114,7 +114,7 @@ export function RecipeCard({
 
 function Footer({ recipe, missing }: { recipe: Recipe; missing: number }) {
   return (
-    <div className="mt-3.5 flex items-center justify-between gap-2">
+    <div className="mt-auto flex items-center justify-between gap-2 pt-3.5">
       <Meta recipe={recipe} compact />
       {missing > 0 ? (
         <span className="flex items-center gap-1 rounded-full bg-warn-soft px-2.5 py-1 text-xs font-semibold text-warn">

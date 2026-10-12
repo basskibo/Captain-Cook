@@ -1,0 +1,55 @@
+import { chromium } from 'playwright-core';
+import fs from 'fs';
+const b = await chromium.launch({ executablePath: '/usr/bin/google-chrome', args:['--force-device-scale-factor=2','--window-size=600,1100'] });
+const ctx = await b.newContext({ viewport:null, colorScheme:'light' });
+await ctx.addInitScript(()=>{ document.addEventListener('DOMContentLoaded',()=>{const s=document.createElement('style');s.textContent='nextjs-portal{display:none!important}';document.head.appendChild(s);}); });
+const p = await ctx.newPage();
+const cdp = await ctx.newCDPSession(p);
+await cdp.send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:0,mobile:true});
+await cdp.send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:5});
+const ND=fs.readFileSync('recipes.ndjson','utf8');
+await p.route('**/api/recipes', async r=>{ await new Promise(z=>setTimeout(z,4200)); await r.fulfill({status:200,contentType:'application/x-ndjson',body:ND}); });
+const frames=[]; const events=[]; let t0=null;
+const now=()=>Date.now()/1000 - t0;
+cdp.on('Page.screencastFrame', async f=>{
+  const i=frames.length; const name=`rec/f${String(i).padStart(5,'0')}.jpg`;
+  fs.writeFileSync(name, Buffer.from(f.data,'base64'));
+  frames.push({file:name, t:f.metadata.timestamp});
+  cdp.send('Page.screencastFrameAck',{sessionId:f.sessionId}).catch(()=>{});
+});
+const mark=(n,extra={})=>{events.push({n,t:Date.now()/1000,...extra}); console.log(n, now().toFixed(2));};
+async function tap(loc,label){ const bb=await loc.boundingBox(); mark('tap',{label,x:bb.x+bb.width/2,y:bb.y+bb.height/2}); await loc.click(); }
+const W=ms=>p.waitForTimeout(ms);
+await p.goto('http://localhost:3001/', {waitUntil:'networkidle'});
+await W(1500);
+t0=Date.now()/1000;
+await cdp.send('Page.startScreencast',{format:'jpeg',quality:88,maxWidth:780,maxHeight:1688,everyNthFrame:1});
+mark('pin'); await W(800);
+for (const d of '6994'){ await tap(p.getByRole('button',{name:d,exact:true}),'pin'+d); await W(380); }
+await W(2200); mark('pantry'); await W(600);
+for (const n of ['Crni luk','Paradajz','Paprika']){ await tap(p.getByRole('button',{name:new RegExp(`^\\S+\\s*${n}$`)}).first(), n); await W(520); }
+mark('scroll'); await p.evaluate(()=>{const el=[...document.querySelectorAll('h2,h3,p,span,div')].find(e=>/JAJA I MLE/i.test(e.textContent)&&e.children.length<3); window.scrollTo({top: el.getBoundingClientRect().top+scrollY-150, behavior:'smooth'});}); await W(1100);
+for (const n of ['Jaja','Sir']){ await tap(p.getByRole('button',{name:new RegExp(`^\\S+\\s*${n}$`)}).first(), n); await W(520); }
+await W(900);
+await tap(p.getByRole('button',{name:/Šta da skuvam/}),'what'); await W(1400);
+mark('options');
+await tap(p.getByRole('button',{name:/Predloži mi jela/}),'suggest'); mark('cooking');
+// wait for 3 recipe cards
+const start=Date.now();
+while(Date.now()-start<60000){ const c=await p.getByText('Domaća šakšuka').count(); const txt=await p.locator('main').innerText(); if(c>=1 && !/Zagrevam|Listam|Seckam|Probam|Konsultujem|Slažem/.test(txt)) break; await W(300);}
+mark('results'); await W(3500);
+await p.mouse.wheel(0,0);
+// open first card
+const card = p.getByText('Domaća šakšuka sa sirom').first();
+await tap(card,'card'); await W(2200); mark('detail');
+await p.evaluate(()=>window.scrollBy({top:500,behavior:'smooth'})); await W(1500);
+await p.evaluate(()=>window.scrollBy({top:600,behavior:'smooth'})); await W(1500);
+await tap(p.getByRole('button',{name:/Počni kuvanje/}),'start'); await W(2200); mark('cookmode');
+await p.screenshot({path:'cookmode.png'});
+
+await W(500);
+await tap(p.getByRole('button',{name:/Pokreni tajmer/}).first(),'timer'); await W(1800); await tap(p.getByRole('button',{name:/Sledeći korak/}),'next'); await W(1800); mark('step2');
+await W(1500);
+await cdp.send('Page.stopScreencast'); mark('end');
+fs.writeFileSync('rec.json', JSON.stringify({frames, events},null,1));
+await b.close();

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Camera, Check, Mic, Plus, Search, Square, X } from "lucide-react";
+import { Camera, Check, Mic, Plus, Search, Sparkles, Square, X } from "lucide-react";
 import { useSpeech } from "@/lib/use-speech";
 import { CATEGORIES, type Ingredient } from "@/lib/ingredients";
 
@@ -64,6 +64,49 @@ function Chip({
   );
 }
 
+function SelectedCard({
+  items,
+  onToggle,
+  onClear,
+}: {
+  items: Ingredient[];
+  onToggle: (id: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="rounded-3xl border border-border bg-surface p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="font-display text-lg font-semibold">
+          U frižideru <span className="text-accent-gradient">{items.length}</span>
+        </h2>
+        <button type="button" onClick={onClear} className="text-sm font-medium text-muted active:text-text">
+          Očisti
+        </button>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <AnimatePresence initial={false}>
+          {items.map((i) => (
+            <motion.button
+              key={i.id}
+              layout
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.6, opacity: 0 }}
+              type="button"
+              onClick={() => onToggle(i.id)}
+              className="flex h-8 items-center gap-1 rounded-full bg-surface-2 pr-2 pl-2.5 text-sm"
+              aria-label={`Ukloni ${i.name}`}
+            >
+              {i.emoji} {i.name}
+              <X className="h-3.5 w-3.5 text-muted" />
+            </motion.button>
+          ))}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 export function PantryView({
   custom,
   selected,
@@ -73,6 +116,7 @@ export function PantryView({
   onClear,
   onScanImage,
   onVoice,
+  onCook,
 }: {
   custom: Ingredient[];
   selected: Set<string>;
@@ -82,6 +126,8 @@ export function PantryView({
   onClear: () => void;
   onScanImage: (file: File) => void;
   onVoice: (text: string) => void;
+  /** Desktop: dugme „Šta da skuvam?“ u bočnom panelu. */
+  onCook: () => void;
 }) {
   const speech = useSpeech(onVoice);
   const [query, setQuery] = useState("");
@@ -122,7 +168,8 @@ export function PantryView({
   };
 
   return (
-    <div className="pb-36">
+    <div className="pb-36 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-10 lg:pb-16">
+      <div className="min-w-0">
       {/* Pretraga + dodavanje */}
       <div className="sticky top-0 z-10 -mx-4 bg-bg/85 px-4 pt-2 pb-3 backdrop-blur-xl">
         <div className="flex gap-2">
@@ -218,7 +265,7 @@ export function PantryView({
 
         {/* Filteri kategorija */}
         {!query && (
-          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
+          <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
             {[
               { id: "sve", name: "Sve", emoji: "✨" },
               ...(custom.length ? [{ id: MINE, name: "Moje", emoji: "⭐" }] : []),
@@ -248,37 +295,10 @@ export function PantryView({
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
+            className="overflow-hidden lg:hidden"
           >
-            <div className="mb-5 rounded-3xl border border-border bg-surface p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-lg font-semibold">
-                  U frižideru <span className="text-accent-gradient">{selectedItems.length}</span>
-                </h2>
-                <button type="button" onClick={onClear} className="text-sm font-medium text-muted active:text-text">
-                  Očisti
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                <AnimatePresence initial={false}>
-                  {selectedItems.map((i) => (
-                    <motion.button
-                      key={i.id}
-                      layout
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.6, opacity: 0 }}
-                      type="button"
-                      onClick={() => onToggle(i.id)}
-                      className="flex h-8 items-center gap-1 rounded-full bg-surface-2 pr-2 pl-2.5 text-sm"
-                      aria-label={`Ukloni ${i.name}`}
-                    >
-                      {i.emoji} {i.name}
-                      <X className="h-3.5 w-3.5 text-muted" />
-                    </motion.button>
-                  ))}
-                </AnimatePresence>
-              </div>
+            <div className="mb-5">
+              <SelectedCard items={selectedItems} onToggle={onToggle} onClear={onClear} />
             </div>
           </motion.section>
         )}
@@ -317,6 +337,34 @@ export function PantryView({
           </div>
         )}
       </div>
+      </div>
+
+      {/* Desktop: bočni panel sa izabranim namirnicama */}
+      <aside className="hidden lg:sticky lg:top-6 lg:block lg:space-y-4 lg:pt-2">
+        {selectedItems.length > 0 ? (
+          <SelectedCard items={selectedItems} onToggle={onToggle} onClear={onClear} />
+        ) : (
+          <div className="rounded-3xl border border-dashed border-border p-6 text-center">
+            <p className="text-4xl">🧺</p>
+            <p className="mt-3 font-display text-lg font-semibold">Frižider je prazan</p>
+            <p className="mt-1 text-sm text-muted">Klikni namirnice levo, slikaj frižider ili ih izgovori.</p>
+          </div>
+        )}
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.97 }}
+          disabled={selectedItems.length === 0}
+          onClick={onCook}
+          className="bg-accent-gradient flex h-14 w-full items-center justify-between rounded-2xl pr-2 pl-5 text-white shadow-[0_16px_36px_-10px_var(--glow)] transition-opacity hover:brightness-105 disabled:opacity-40"
+        >
+          <span className="flex items-center gap-2 text-lg font-semibold">
+            <Sparkles className="h-5 w-5" /> Šta da skuvam?
+          </span>
+          <span className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/20 px-2 font-bold">
+            {selectedItems.length}
+          </span>
+        </motion.button>
+      </aside>
     </div>
   );
 }

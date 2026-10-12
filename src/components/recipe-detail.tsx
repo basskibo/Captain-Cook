@@ -83,7 +83,8 @@ function RecipeBody({
   };
 
   return (
-    <div className="px-5 pb-10">
+    <div className="px-5 pb-10 lg:grid lg:grid-cols-2 lg:items-start lg:gap-10 lg:px-8">
+      <div className="min-w-0">
       {recipe.image ? (
         <figure>
           <div className="relative">
@@ -232,7 +233,11 @@ function RecipeBody({
         )}
       </section>
 
-      <section className="mt-8">
+      </div>
+
+      {/* Desna kolona na desktopu: priprema, savet, chat */}
+      <div className="min-w-0 lg:pt-14">
+      <section className="mt-8 lg:mt-0">
         <div className="mb-3 flex items-end justify-between">
           <h3 className="font-display text-xl font-semibold">Priprema</h3>
           <span className="text-sm text-muted">
@@ -280,6 +285,7 @@ function RecipeBody({
       )}
 
       <ChefChat recipe={scaled} profileNote={profileNote} />
+      </div>
 
       <CookingMode recipe={scaled} open={cooking} onClose={() => setCooking(false)} />
     </div>

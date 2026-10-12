@@ -29,6 +29,13 @@ const TABS: { id: Tab; label: string; icon: typeof ShoppingBasket }[] = [
   { id: "shopping", label: "Kupovina", icon: ShoppingCart },
 ];
 
+const TAB_SUBTITLES: Record<Tab, string> = {
+  pantry: "Označi šta imaš u kuhinji — slikaj frižider ili izgovori namirnice.",
+  recipes: "Predlozi jela napravljeni od tvojih namirnica.",
+  saved: "Recepti kojima se rado vraćaš.",
+  shopping: "Sve što treba dokupiti, na jednom mestu.",
+};
+
 const LOADING_LINES = [
   "Zagrevam tiganj…",
   "Listam bakine sveske…",
@@ -242,10 +249,98 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
 
   const count = selectedList.length;
 
+  const badgeFor = (id: Tab) =>
+    id === "recipes"
+      ? results.length
+      : id === "saved"
+        ? saved.length
+        : id === "shopping"
+          ? shopping.filter((i) => !i.done).length
+          : count;
+
+  const goTo = (id: Tab) => {
+    setTab(id);
+    window.scrollTo({ top: 0 });
+  };
+
+  const syncBadge = syncStatus !== "off" && (
+    <span
+      title={syncStatus === "error" ? "Sinhronizacija nije uspela" : "Sinhronizovano između uređaja"}
+      className={syncStatus === "error" ? "text-danger" : syncStatus === "saving" ? "animate-pulse text-accent" : "text-ok"}
+    >
+      {syncStatus === "error" ? <CloudOff className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
+    </span>
+  );
+
   return (
-    <div className="mx-auto min-h-dvh max-w-lg">
-      {/* Header */}
-      <header className="pt-safe px-4">
+    <div className="mx-auto min-h-dvh max-w-lg lg:flex lg:max-w-7xl lg:gap-10 lg:px-8">
+      {/* Desktop: bočni meni */}
+      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-60 lg:shrink-0 lg:flex-col lg:py-8">
+        <div className="flex items-center gap-3 px-2">
+          <div className="bg-accent-gradient grid h-11 w-11 place-items-center rounded-2xl text-white shadow-[0_8px_20px_-8px_var(--glow)]">
+            <ChefHat className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-display text-lg leading-tight font-bold">Captain Cook</p>
+            <p className="flex items-center gap-1.5 text-xs text-muted">Lični AI kuvar {syncBadge}</p>
+          </div>
+        </div>
+
+        <nav className="mt-8 space-y-1">
+          {TABS.map((t) => {
+            const active = tab === t.id;
+            const Icon = t.icon;
+            const badge = badgeFor(t.id);
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => goTo(t.id)}
+                aria-current={active ? "page" : undefined}
+                className={`relative flex h-12 w-full items-center gap-3 rounded-2xl px-3 text-left font-medium transition-colors ${active ? "text-text" : "text-muted hover:bg-surface-2/60 hover:text-text"}`}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="side-pill"
+                    className="absolute inset-0 rounded-2xl bg-surface-2"
+                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                  />
+                )}
+                <Icon className={`relative h-5 w-5 ${active ? "text-accent" : ""}`} strokeWidth={active ? 2.3 : 2} />
+                <span className="relative flex-1">{t.label}</span>
+                {badge > 0 && (
+                  <span className="relative grid h-6 min-w-6 place-items-center rounded-full bg-accent/15 px-1.5 text-xs font-bold text-accent">
+                    {badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="mt-auto space-y-1">
+          <button
+            type="button"
+            onClick={() => setProfileOpen(true)}
+            className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-medium text-muted hover:bg-surface-2/60 hover:text-text"
+          >
+            <SlidersHorizontal className="h-4.5 w-4.5" />
+            <span className="flex-1">Moj ukus</span>
+            {profileSummary(profile) && <span className="h-2 w-2 rounded-full bg-accent" />}
+          </button>
+          <button
+            type="button"
+            onClick={logout}
+            className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-medium text-muted hover:bg-surface-2/60 hover:text-text"
+          >
+            <Lock className="h-4.5 w-4.5" /> Zaključaj
+          </button>
+        </div>
+      </aside>
+
+      <div className="min-w-0 flex-1">
+      {/* Mobilno zaglavlje */}
+      <header className="pt-safe px-4 lg:hidden">
         <div className="flex h-16 items-center gap-3">
           <div className="bg-accent-gradient grid h-10 w-10 place-items-center rounded-2xl text-white shadow-[0_8px_20px_-8px_var(--glow)]">
             <ChefHat className="h-5 w-5" />
@@ -253,14 +348,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           <div className="flex-1">
             <p className="flex items-center gap-1.5 text-xs font-medium text-muted">
               Captain Cook
-              {syncStatus !== "off" && (
-                <span
-                  title={syncStatus === "error" ? "Sinhronizacija nije uspela" : "Sinhronizovano između uređaja"}
-                  className={syncStatus === "error" ? "text-danger" : syncStatus === "saving" ? "animate-pulse text-accent" : "text-ok"}
-                >
-                  {syncStatus === "error" ? <CloudOff className="h-3.5 w-3.5" /> : <Cloud className="h-3.5 w-3.5" />}
-                </span>
-              )}
+              {syncBadge}
             </p>
             <h1 className="font-display text-xl leading-tight font-bold">{TABS.find((t) => t.id === tab)?.label}</h1>
           </div>
@@ -284,13 +372,19 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         </div>
       </header>
 
+      {/* Desktop naslov */}
+      <header className="hidden lg:block lg:pt-10 lg:pb-6">
+        <h1 className="font-display text-4xl font-bold tracking-tight">{TABS.find((t) => t.id === tab)?.label}</h1>
+        <p className="mt-1.5 text-muted">{TAB_SUBTITLES[tab]}</p>
+      </header>
+
       <AnimatePresence>
         {!online && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden px-4"
+            className="overflow-hidden px-4 lg:px-0"
           >
             <div className="mb-2 flex items-center gap-3 rounded-2xl bg-warn-soft px-4 py-3 text-sm">
               <WifiOff className="h-4 w-4 shrink-0 text-warn" />
@@ -302,7 +396,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         )}
       </AnimatePresence>
 
-      <main className="px-4">
+      <main className="px-4 lg:px-0">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={tab}
@@ -321,13 +415,14 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                 onClear={() => setSelectedList([])}
                 onScanImage={(file) => setScanInput({ kind: "image", file })}
                 onVoice={(text) => setScanInput({ kind: "text", text })}
+                onCook={() => setOptionsOpen(true)}
               />
             )}
 
             {tab === "recipes" && (
-              <div className="space-y-3 pt-2 pb-32">
+              <div className="grid gap-3 pt-2 pb-32 lg:grid-cols-2 lg:gap-5 lg:pb-16 xl:grid-cols-3">
                 {loading && (
-                  <>
+                  <div className="space-y-3 lg:col-span-full lg:mx-auto lg:w-full lg:max-w-2xl">
                     <div className="flex items-center gap-3 rounded-2xl bg-surface-2/60 p-4">
                       <motion.span
                         animate={{ rotate: [0, -15, 15, 0] }}
@@ -349,11 +444,11 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                       </AnimatePresence>
                     </div>
                     <CookingAnimation emojis={cookingEmojis} />
-                  </>
+                  </div>
                 )}
 
                 {error && !loading && (
-                  <div className="rounded-2xl border border-danger/30 bg-danger/10 p-4 text-center">
+                  <div className="rounded-2xl border border-danger/30 bg-danger/10 p-4 text-center lg:col-span-full">
                     <p className="font-medium">{error}</p>
                     <button type="button" onClick={() => cook()} className="mt-2 text-sm font-semibold text-accent">
                       Pokušaj ponovo
@@ -388,7 +483,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center gap-3 rounded-3xl border border-dashed border-border p-4 text-muted"
+                    className="flex items-center gap-3 rounded-3xl border border-dashed border-border p-4 text-muted lg:min-h-40 lg:justify-center"
                   >
                     <motion.span
                       animate={{ rotate: [0, -15, 15, 0] }}
@@ -402,7 +497,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                 )}
 
                 {!streaming && results.length > 0 && (
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex gap-2 pt-2 lg:col-span-full lg:mx-auto lg:w-full lg:max-w-md">
                     <motion.button
                       whileTap={{ scale: 0.97 }}
                       type="button"
@@ -425,11 +520,13 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
             )}
 
             {tab === "shopping" && (
-              <ShoppingView items={shopping} onChange={setShopping} onMoveToPantry={moveToPantry} />
+              <div className="lg:max-w-2xl">
+                <ShoppingView items={shopping} onChange={setShopping} onMoveToPantry={moveToPantry} />
+              </div>
             )}
 
             {tab === "saved" && (
-              <div className="space-y-3 pt-2 pb-32">
+              <div className="grid gap-3 pt-2 pb-32 lg:grid-cols-2 lg:gap-5 lg:pb-16 xl:grid-cols-3">
                 {saved.length === 0 ? (
                   <EmptyState
                     emoji="💛"
@@ -455,9 +552,17 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           </motion.div>
         </AnimatePresence>
       </main>
+      </div>
 
-      {/* Donja traka: CTA + navigacija */}
-      <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4">
+      {/* Desktop: aktivni tajmeri u donjem desnom uglu */}
+      {timers.length > 0 && (
+        <div className="fixed right-6 bottom-6 z-30 hidden w-96 lg:block">
+          <TimerTray />
+        </div>
+      )}
+
+      {/* Mobilna donja traka: CTA + navigacija */}
+      <div className="pb-safe pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4 lg:hidden">
         {timers.length > 0 && (
           <div className="pointer-events-auto mb-3">
             <TimerTray />
@@ -493,22 +598,12 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           {TABS.map((t) => {
             const active = tab === t.id;
             const Icon = t.icon;
-            const badge =
-              t.id === "recipes"
-                ? results.length
-                : t.id === "saved"
-                  ? saved.length
-                  : t.id === "shopping"
-                    ? shopping.filter((i) => !i.done).length
-                    : count;
+            const badge = badgeFor(t.id);
             return (
               <button
                 key={t.id}
                 type="button"
-                onClick={() => {
-                  setTab(t.id);
-                  window.scrollTo({ top: 0 });
-                }}
+                onClick={() => goTo(t.id)}
                 aria-current={active ? "page" : undefined}
                 className="relative flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2"
               >
@@ -589,7 +684,11 @@ function EmptyState({
   onAction?: () => void;
 }) {
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center px-6 py-16 text-center">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex flex-col items-center px-6 py-16 text-center lg:col-span-full lg:py-24"
+    >
       <motion.div
         animate={{ y: [0, -8, 0] }}
         transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}

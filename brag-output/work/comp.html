@@ -1,0 +1,143 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Geist:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  :root{--bg:#f7f3ee;--text:#1d1a17;--muted:#7a7168;--accent:#f0562b;--accent2:#ff9f43;--border:#e6dfd6}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--bg)}
+  #stage{position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--bg);font-family:Geist,system-ui,sans-serif;color:var(--text)}
+  .glow{position:absolute;border-radius:50%;filter:blur(40px);pointer-events:none}
+  #g1{width:1100px;height:900px;background:radial-gradient(closest-side,rgba(240,86,43,.30),rgba(240,86,43,0));}
+  #g2{width:1200px;height:1000px;background:radial-gradient(closest-side,rgba(255,159,67,.30),rgba(255,159,67,0));}
+  .grad{background-image:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .display{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-0.035em}
+  #hook{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  #hookText{font-size:196px;font-weight:800;line-height:1;white-space:nowrap;display:flex;gap:44px}
+  #hookText span{display:inline-block;padding-bottom:.12em}
+  .hemo{position:absolute;font-size:112px;line-height:1;filter:drop-shadow(0 18px 24px rgba(120,60,20,.18))}
+  .cap{position:absolute;left:150px;top:0;height:1080px;width:820px;display:flex;flex-direction:column;justify-content:center}
+  .eyebrow{display:inline-flex;align-self:flex-start;align-items:center;gap:12px;font-size:26px;font-weight:600;color:var(--accent);background:rgba(240,86,43,.10);border:1.5px solid rgba(240,86,43,.22);padding:10px 22px 10px 18px;border-radius:999px;margin-bottom:34px}
+  .eyebrow b{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:9px;color:#fff;font-size:17px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .line{font-size:104px;font-weight:800;line-height:1.02}
+  .line .w{display:inline-block;margin-right:.24em;padding-bottom:.08em}
+  #phone{position:absolute;width:446px;height:936px;border-radius:64px;background:#1b1715;padding:12px;
+    box-shadow:0 0 0 2px #3a332e inset,0 60px 120px -30px rgba(90,40,10,.38),0 30px 60px -20px rgba(240,86,43,.25)}
+  #screen{position:relative;width:422px;height:912px;border-radius:52px;overflow:hidden;background:var(--bg)}
+  #screen img{position:absolute;inset:0;width:422px;height:912px}
+  #island{position:absolute;left:50%;top:12px;width:118px;height:34px;margin-left:-59px;border-radius:20px;background:#0b0908;z-index:5}
+  .tap{position:absolute;width:88px;height:88px;margin:-44px 0 0 -44px;border-radius:50%;z-index:6;pointer-events:none}
+  .tapdot{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;z-index:7;background:rgba(29,26,23,.22);border:2px solid rgba(255,255,255,.85);box-shadow:0 6px 16px rgba(0,0,0,.15)}
+  #outro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  #oicon{width:184px;height:184px;filter:drop-shadow(0 30px 40px rgba(240,86,43,.35))}
+  #otitle{font-size:150px;font-weight:800;margin-top:34px;line-height:1}
+  #otag{font-size:54px;font-weight:500;color:var(--muted);margin-top:26px;letter-spacing:-0.01em}
+  #oemo{display:flex;gap:26px;font-size:60px;margin-top:44px}
+</style></head>
+<body><div id="stage">
+  <div class="glow" id="g1"></div><div class="glow" id="g2"></div>
+  <div id="hook"><div id="hookText" class="display"><span id="h1">Šta</span><span id="h2">da</span><span id="h3" class="grad">skuvam?</span></div></div>
+  <div id="caps"></div>
+  <div id="phone"><div id="screen"><img id="shot"><div id="taps"></div></div></div>
+  <div id="outro">
+    <img id="oicon" src="icon.svg">
+    <div id="otitle" class="display">Captain <span class="grad">Cook</span></div>
+    <div id="otag">Lični AI kuvar u džepu.</div>
+  </div>
+</div>
+<script src="data.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const clamp=(x,a=0,b=1)=>Math.min(b,Math.max(a,x));
+const lin=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const back=x=>{const c=1.7;return 1+(c+1)*Math.pow(x-1,3)+c*Math.pow(x-1,2)};
+const spring=x=>x>=1?1:1-Math.exp(-6*x)*Math.cos(9*x);
+
+// Video time -> recording time (cuts inside the phone screen)
+const SEGS=[[2.6,4.9,5.0],[4.9,7.45,8.45],[7.45,10.05,11.85],[10.05,12.6,16.25],[12.6,14.1,19.6],[14.1,14.55,25.0],[14.55,21,26.15]];
+function recT(t){for(const [a,b,r] of SEGS){if(t<b)return r+Math.max(0,t-a);}return 0}
+function frameAt(tr){let lo=0,hi=FRAMES.length-1,best=0;while(lo<=hi){const m=(lo+hi)>>1;if(FRAMES[m][1]<=tr){best=m;lo=m+1}else hi=m-1}return FRAMES[best][0]}
+const FIX={Jaja:[60,405],Sir:[55,460]};
+const TAPV=[];
+for(const [label,tr,x,y] of TAPS){if(label.startsWith('pin'))continue;
+  for(const [a,b,r] of SEGS){const tv=a+(tr-r);if(tv>=a-0.05&&tv<b){const p=FIX[label]||[x,y];TAPV.push({label,tv:Math.max(tv,a+0.08),x:p[0],y:p[1]});break;}}}
+
+const CAPS=[
+  {in:3.0,out:7.3,icon:'1',eye:'Namirnice',words:['Označi','šta','imaš',{g:'u kuhinji.'}]},
+  {in:7.65,out:9.95,icon:'2',eye:'Predlozi',words:['AI','kuvar','smišlja',{g:'šta da skuvaš.'}]},
+  {in:10.2,out:14.05,icon:'3',eye:'Recepti',words:[{g:'Tri jela.'},'Recept','korak','po','korak.']},
+  {in:14.3,out:17.85,icon:'4',eye:'Režim kuvanja',words:['Piše',{g:'„8 minuta“?'},'Evo','tajmera.']},
+];
+const capEls=CAPS.map(c=>{const d=document.createElement('div');d.className='cap';
+  d.innerHTML=`<div class="eyebrow"><b>${c.icon}</b>${c.eye}</div><div class="line display">${c.words.map(w=>typeof w==='string'?`<span class="w">${w}</span>`:`<span class="w grad">${w.g}</span>`).join('')}</div>`;
+  $('caps').appendChild(d);return d});
+
+const EMO=[['🧅',-560,-250,-14],['🍅',520,-260,12],['🫑',-640,190,10],['🥚',600,200,-10],['🧀',-40,-330,6]];
+const emoEls=EMO.map(([e])=>{const s=document.createElement('div');s.className='hemo';s.textContent=e;$('hook').appendChild(s);return s});
+
+function setT(el,tx,ty,sc,op,rot=0){el.style.transform=`translate(${tx}px,${ty}px) scale(${sc}) rotate(${rot}deg)`;el.style.opacity=op}
+
+async function render(t){
+  // background drift
+  $('g1').style.transform=`translate(${-260+Math.sin(t*.35)*60}px,${-300+Math.cos(t*.3)*40}px)`;
+  $('g2').style.transform=`translate(${1150+Math.cos(t*.28)*70}px,${420+Math.sin(t*.33)*50}px)`;
+
+  // HOOK
+  const hOut=eio(lin(t,2.25,2.7));
+  ['h1','h2','h3'].forEach((id,i)=>{const p=eo(lin(t,0.08+i*0.11,0.5+i*0.11));const el=$(id);
+    el.style.transform=`translateY(${(1-p)*90 - hOut*40}px)`;el.style.opacity=p*(1-hOut)});
+  $('hookText').style.transform=`scale(${1-hOut*0.08})`;
+  emoEls.forEach((el,i)=>{const [_,x,y,r]=EMO[i];const p=spring(lin(t,0.45+i*0.13,1.25+i*0.13));
+    const bob=Math.sin(t*2.2+i)*8; const o=hOut;
+    el.style.left=(960-56)+'px';el.style.top=(540-56)+'px';
+    setT(el,x*(1+o*0.25),y+bob+o*-30,Math.max(0,p)*(1-o*0.6),Math.min(1,lin(t,0.45+i*0.13,0.6+i*0.13))*(1-o),r+Math.sin(t*1.7+i)*5)});
+  $('hook').style.display=t<2.8?'flex':'none';
+
+  // PHONE
+  const pin=eo(lin(t,2.5,3.15));
+  const pout=eio(lin(t,17.95,18.5));
+  const px=1110, py=72;
+  const showPhone=t>=2.45&&t<18.6;
+  $('phone').style.display=showPhone?'block':'none';
+  if(showPhone){
+    $('phone').style.left=px+'px';$('phone').style.top=py+'px';
+    const tx=(1-pin)*560+pout*420, ty=(1-pin)*60 + Math.sin(t*0.9)*4, rot=(1-pin)*6+pout*5;
+    $('phone').style.transform=`translate(${tx}px,${ty}px) rotate(${rot}deg) scale(${1-pout*0.1})`;
+    $('phone').style.opacity=Math.min(1,pin*1.6)*(1-pout);
+    const src=frameAt(recT(t));const img=$('shot');
+    if(img.getAttribute('src')!==src){img.setAttribute('src',src);try{await img.decode()}catch(e){}}
+    // taps
+    const S=422/390; let html='';
+    for(const tp of TAPV){const d=t-tp.tv;if(d<-0.18||d>0.55)continue;
+      const x=tp.x*S,y=tp.y*S;
+      if(d<0.22){const p=lin(d,-0.18,0);const fade=d>0?1-lin(d,0.05,0.22):1;html+=`<div class="tapdot" style="left:${x}px;top:${y}px;opacity:${p*fade};transform:scale(${1.25-0.3*p+(d>0?-0.1:0)})"></div>`;}
+      if(d>=0){const p=eo(lin(d,0,0.5));html+=`<div class="tap" style="left:${x}px;top:${y}px;transform:scale(${0.4+p*1.1});border:3px solid rgba(255,255,255,${0.9*(1-p)});background:rgba(240,86,43,${0.22*(1-p)})"></div>`;}
+    }
+    $('taps').innerHTML=html;
+  }
+
+  // CAPTIONS: old out (up+fade), then new in word by word
+  CAPS.forEach((c,i)=>{const el=capEls[i];
+    if(t<c.in-0.05||t>c.out+0.4){el.style.display='none';return}
+    el.style.display='flex';
+    const out=eio(lin(t,c.out,c.out+0.3));
+    const ey=el.querySelector('.eyebrow');const pe=eo(lin(t,c.in,c.in+0.3));
+    ey.style.transform=`translateY(${(1-pe)*24-out*30}px)`;ey.style.opacity=pe*(1-out);
+    el.querySelectorAll('.w').forEach((w,j)=>{const p=eo(lin(t,c.in+0.06+j*0.07,c.in+0.46+j*0.07));
+      w.style.transform=`translateY(${(1-p)*56-out*40}px)`;w.style.opacity=p*(1-out);w.style.filter=`blur(${(1-p)*8+out*6}px)`});
+  });
+
+  // OUTRO
+  const showO=t>=18.2;$('outro').style.display=showO?'flex':'none';
+  if(showO){const pi=back(clamp(lin(t,18.25,18.85)));
+    $('oicon').style.transform=`scale(${pi}) rotate(${(1-lin(t,18.25,18.85))*-12}deg)`;$('oicon').style.opacity=lin(t,18.25,18.45);
+    const p2=eo(lin(t,18.55,19.05));$('otitle').style.transform=`translateY(${(1-p2)*50}px)`;$('otitle').style.opacity=p2;
+    const p3=eo(lin(t,18.85,19.35));$('otag').style.transform=`translateY(${(1-p3)*30}px)`;$('otag').style.opacity=p3;
+  }
+}
+window.render=render;
+window.ready=(async()=>{await document.fonts.ready;await Promise.all([...document.images].map(i=>i.decode().catch(()=>{})));
+  await document.fonts.load('800 100px "Bricolage Grotesque"');await document.fonts.load('500 40px Geist');return true})();
+</script></body></html>

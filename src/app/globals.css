@@ -60,6 +60,8 @@
 html {
   -webkit-tap-highlight-color: transparent;
   background: var(--bg);
+  /* Rezerviši mesto za scrollbar, da se raspored ne pomera između tabova (desktop) */
+  scrollbar-gutter: stable;
 }
 
 body {
