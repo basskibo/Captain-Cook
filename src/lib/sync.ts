@@ -8,6 +8,31 @@ export type SyncEntry = { v: unknown; t: number };
 type Remote = Record<string, SyncEntry> | null;
 
 let remote: Promise<Remote> | null = null;
+// Menja se pri prijavi/odjavi, da hook-ovi ponovo urade sinhronizaciju za novog korisnika.
+let authEpoch = 0;
+const epochListeners = new Set<() => void>();
+
+export function bumpAuthEpoch() {
+  authEpoch++;
+  remote = null;
+  pushTimers.forEach((t) => clearTimeout(t));
+  pushTimers.clear();
+  setStatus("off");
+  epochListeners.forEach((l) => l());
+}
+
+export function useAuthEpoch() {
+  return useSyncExternalStore(
+    (l) => {
+      epochListeners.add(l);
+      return () => {
+        epochListeners.delete(l);
+      };
+    },
+    () => authEpoch,
+    () => 0,
+  );
+}
 const listeners = new Map<string, Set<(e: SyncEntry) => void>>();
 const pushTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const statusListeners = new Set<(s: SyncStatus) => void>();

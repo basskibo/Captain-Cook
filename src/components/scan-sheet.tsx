@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { Check, RotateCcw, ScanLine, Sparkles } from "lucide-react";
 import type { Ingredient } from "@/lib/ingredients";
 import { resizeImage } from "@/lib/resize-image";
+import { useAuth } from "@/lib/auth-client";
 import { Sheet } from "./sheet";
 
 /** Akuzativ: 1 namirnicu, 2-4 namirnice, 5+ namirnica (uz izuzetke 11-14). */
@@ -31,7 +32,6 @@ export function ScanSheet({
   lookup,
   selected,
   customNames,
-  onUnauthorized,
 }: {
   input: ScanInput | null;
   onClose: () => void;
@@ -39,8 +39,8 @@ export function ScanSheet({
   lookup: Map<string, Ingredient>;
   selected: Set<string>;
   customNames: string[];
-  onUnauthorized: () => void;
 }) {
+  const { requireAuth } = useAuth();
   const [state, setState] = useState<State>({ status: "idle" });
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [attempt, setAttempt] = useState(0);
@@ -67,7 +67,10 @@ export function ScanSheet({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        if (res.status === 401) return onUnauthorized();
+        if (res.status === 401) {
+          onClose();
+          return requireAuth({ reason: "Prijavi se da bi AI prepoznao namirnice." });
+        }
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "Greška");
         if (cancelled) return;

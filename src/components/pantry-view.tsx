@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Camera, Check, Mic, Plus, Search, Sparkles, Square, X } from "lucide-react";
 import { useSpeech } from "@/lib/use-speech";
+import { usePersistentState } from "@/lib/use-persistent-state";
 import { CATEGORIES, type Ingredient } from "@/lib/ingredients";
 
 const MINE = "moje";
@@ -36,16 +37,15 @@ function Chip({
         onClick={onToggle}
         aria-pressed={selected}
         className={[
-          "flex h-10 items-center gap-1.5 rounded-full border pr-3.5 pl-2.5 text-[15px] font-medium transition-colors",
-          onRemove ? "pr-8" : "",
+          "flex h-10 items-center gap-1.5 rounded-full border px-4 text-[15px] font-medium transition-colors",
+          onRemove ? "pr-9" : "",
           selected
-            ? "bg-accent-gradient border-transparent text-white shadow-[0_6px_18px_-6px_var(--glow)]"
-            : "border-border bg-surface text-text active:bg-surface-2",
+            ? "border-accent/60 bg-accent/10 text-accent"
+            : "border-border bg-surface text-text hover:border-muted/50 active:bg-surface-2",
         ].join(" ")}
       >
-        <span className="text-base leading-none">{item.emoji}</span>
+        {selected && !onRemove && <Check className="-ml-1 h-4 w-4" strokeWidth={2.6} />}
         {item.name}
-        {selected && !onRemove && <Check className="-mr-1 h-4 w-4" strokeWidth={2.6} />}
       </motion.button>
       {onRemove && (
         <button
@@ -54,7 +54,7 @@ function Chip({
           aria-label={`Ukloni ${item.name} sa liste`}
           className={[
             "absolute top-1/2 right-1.5 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full",
-            selected ? "bg-white/25 text-white" : "bg-surface-2 text-muted",
+            selected ? "bg-accent/15 text-accent" : "bg-surface-2 text-muted",
           ].join(" ")}
         >
           <X className="h-3.5 w-3.5" strokeWidth={2.6} />
@@ -97,7 +97,7 @@ function SelectedCard({
               className="flex h-8 items-center gap-1 rounded-full bg-surface-2 pr-2 pl-2.5 text-sm"
               aria-label={`Ukloni ${i.name}`}
             >
-              {i.emoji} {i.name}
+              {i.name}
               <X className="h-3.5 w-3.5 text-muted" />
             </motion.button>
           ))}
@@ -130,6 +130,7 @@ export function PantryView({
   onCook: () => void;
 }) {
   const speech = useSpeech(onVoice);
+  const [onboarded, setOnboarded] = usePersistentState("cc.onboarded", false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("sve");
 
@@ -227,11 +228,12 @@ export function PantryView({
           </AnimatePresence>
         </form>
         <label
-          className="bg-accent-gradient grid h-12 w-12 shrink-0 cursor-pointer place-items-center rounded-2xl text-white shadow-[0_8px_20px_-8px_var(--glow)] active:scale-95"
+          className="flex h-12 shrink-0 cursor-pointer items-center gap-2 rounded-2xl border border-border bg-surface px-3.5 font-medium text-text hover:border-muted/50 active:scale-95 lg:px-4"
           aria-label="Slikaj frižider"
-          title="Slikaj frižider"
+          title="Slikaj frižider — AI prepozna namirnice"
         >
-          <Camera className="h-5 w-5" />
+          <Camera className="h-5 w-5 text-accent" />
+          <span className="hidden text-sm lg:inline">Slikaj frižider</span>
           <input
             type="file"
             accept="image/*"
@@ -280,13 +282,50 @@ export function PantryView({
                   filter === c.id ? "bg-text text-bg" : "bg-surface-2 text-muted",
                 ].join(" ")}
               >
-                <span>{c.emoji}</span>
                 {c.name}
               </button>
             ))}
           </div>
         )}
       </div>
+
+      {/* Kratak vodič za nove korisnike */}
+      <AnimatePresence initial={false}>
+        {!onboarded && !query && (
+          <motion.section
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="relative mb-5 rounded-3xl border border-border bg-surface p-4 pr-12">
+              <p className="font-display text-lg font-semibold">Kako radi?</p>
+              <ol className="mt-2 grid gap-2 text-sm text-muted sm:grid-cols-3">
+                {[
+                  "Označi šta imaš u kuhinji — ili slikaj frižider.",
+                  "Klikni „Predloži jela“ i AI smisli 3 recepta.",
+                  "Kuvaj korak po korak, uz tajmere.",
+                ].map((step, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-bold text-accent">
+                      {i + 1}
+                    </span>
+                    <span className="pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <button
+                type="button"
+                onClick={() => setOnboarded(true)}
+                aria-label="Sakrij uputstvo"
+                className="absolute top-3 right-3 grid h-8 w-8 place-items-center rounded-full text-muted hover:bg-surface-2"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Izabrano */}
       <AnimatePresence initial={false}>
@@ -309,7 +348,6 @@ export function PantryView({
         {sections.map((c) => (
           <section key={c.id}>
             <h3 className="mb-2.5 flex items-center gap-2 text-xs font-semibold tracking-wider text-muted uppercase">
-              <span className="text-base">{c.emoji}</span>
               {c.name}
             </h3>
             <div className="flex flex-wrap gap-2">
@@ -355,13 +393,14 @@ export function PantryView({
           whileTap={{ scale: 0.97 }}
           disabled={selectedItems.length === 0}
           onClick={onCook}
+          title={selectedItems.length === 0 ? "Prvo označi bar jednu namirnicu" : undefined}
           className="bg-accent-gradient flex h-14 w-full items-center justify-between rounded-2xl pr-2 pl-5 text-white shadow-[0_16px_36px_-10px_var(--glow)] transition-opacity hover:brightness-105 disabled:opacity-40"
         >
           <span className="flex items-center gap-2 text-lg font-semibold">
-            <Sparkles className="h-5 w-5" /> Šta da skuvam?
+            <Sparkles className="h-5 w-5" /> Predloži jela
           </span>
-          <span className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/20 px-2 font-bold">
-            {selectedItems.length}
+          <span className="rounded-xl bg-white/20 px-2.5 py-1 text-sm font-semibold">
+            {selectedItems.length} namirnica
           </span>
         </motion.button>
       </aside>

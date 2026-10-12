@@ -14,7 +14,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 
 | | |
 |---|---|
-| 🔒 **PIN zaštita** | Fensi PIN tastatura pri otvaranju. Provera na serveru, potpisan httpOnly cookie (30 dana), blokada IP-a posle 5 pogrešnih pokušaja (+ globalna zaštita). Dnevni limit AI poziva čuva kvotu. |
+| 👤 **Nalozi** | Registracija emailom i lozinkom (scrypt heš, potpisan httpOnly cookie 60 dana). Bez naloga se biraju namirnice i vodi lista lokalno; AI predlozi, skeniranje i chat traže nalog. Dnevni AI limit po nalogu, zaštita od pogađanja lozinke. |
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🎙️ **Glasovni unos** | Reci „imam dva jajeta, malo sira i crnog luka“ i namirnice se označe (Web Speech API + AI razume padeže). |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
@@ -28,13 +28,13 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 | 👨‍🍳 **Režim kuvanja** | Ceo ekran, korak po korak (prevlačenje levo/desno), ekran se ne gasi (Wake Lock). Trajanja iz koraka („kuvaj 10 minuta“) postaju dugme za tajmer sa zvukom, vibracijom i obaveštenjem, ili za **sistemski tajmer telefona** (Android direktno, iPhone preko prečice „Captain Tajmer“). |
 | 🛒 **Lista za kupovinu** | Jednim tapom sve što fali ide na listu. Štikliranje, slanje u Beleške (Notes), WhatsApp ili Viber i „Prebaci kupljeno u frižider“. |
 | 💬 **Pitaj kuvara** | Chat u receptu: „nemam pavlaku, čime da zamenim?“, „može li u airfryer?“. Kuvar zna recept i tvoj ukus, odgovori stižu uživo. |
-| ☁️ **Sinhronizacija** | Opciono preko Upstash Redis-a: izmene na jednom uređaju stižu na drugi (pri otvaranju i povratku u aplikaciju). Novija izmena pobeđuje; pri prvom povezivanju uređaja liste se spajaju, pa se postojeći podaci ne gube. |
+| ☁️ **Sinhronizacija** | Podaci naloga (namirnice, sačuvana jela, lista, „Moj ukus“) stižu na svaki uređaj na kom se prijaviš. Novija izmena pobeđuje; ono što je gost uradio pre prijave spaja se sa nalogom. |
 | 📴 **Offline** | Service worker kešira aplikaciju: sačuvani recepti, lista za kupovinu i tajmeri rade i bez interneta. |
 | 💛 **Sačuvano** | Omiljeni recepti na jedan tap, deljenje preko Web Share / clipboard-a. |
 | 📱 **Mobile-first PWA** | Dodaj na početni ekran, svetla/tamna tema, podrška za iPhone notch (safe-area). |
 | 🖥️ **Desktop raspored** | Na širokom ekranu: bočni meni, namirnice u dve kolone sa panelom „U frižideru“, recepti u mreži, prozori umesto panela odozdo i recept u dve kolone. |
 
-Podaci se čuvaju lokalno u browseru (`localStorage`). Uz opcionu Upstash Redis bazu, namirnice, sačuvani recepti, lista za kupovinu i profil se **sinhronizuju između uređaja** (telefon ↔ laptop).
+Gost čuva podatke lokalno u browseru. Sa nalogom se namirnice, sačuvani recepti, lista za kupovinu i profil čuvaju u Upstash Redis bazi i **sinhronizuju između uređaja**.
 
 ## 🚀 Pokretanje lokalno
 
@@ -52,39 +52,33 @@ npm run dev
 
 | Varijabla | Obavezno | Opis |
 |---|:---:|---|
-| `APP_PIN` | ✅ | PIN za otključavanje (npr. `1234`). Dužina PIN-a određuje broj tačkica. |
-| `SESSION_SECRET` | preporučeno | Nasumičan string za potpis cookie-ja: `openssl rand -hex 32` |
+| `SESSION_SECRET` | ✅ | Nasumičan string za potpis sesija: `openssl rand -hex 32`. Promena odjavljuje sve korisnike. |
 | `AI_PROVIDER` | | `gemini`, `anthropic` ili `mock`. Ako je prazno, bira se provajder čiji ključ postoji. |
 | `GEMINI_API_KEY` | ✅* | Besplatan ključ: <https://aistudio.google.com/apikey> |
 | `GEMINI_MODEL` | | Podrazumevano `gemini-flash-latest` (alias koji uvek prati aktuelni Flash model) |
 | `GEMINI_FALLBACK_MODEL` | | Rezervni model kad je glavni preopterećen. Podrazumevano `gemini-flash-lite-latest` |
 | `ANTHROPIC_API_KEY` | ✅* | Ključ sa <https://console.anthropic.com> |
 | `ANTHROPIC_MODEL` | | Podrazumevano `claude-haiku-5-5` |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | | Upstash Redis za sinhronizaciju (postavlja ih Vercel integracija). Rade i `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. |
-| `AI_DAILY_LIMIT` | | Najviše AI poziva dnevno (recepti + skeniranje + chat), podrazumevano `60`. Resetuje se u ponoć po beogradskom vremenu. |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | ✅ (produkcija) | Upstash Redis: nalozi, sinhronizacija i limiti (postavlja ih Vercel integracija). Rade i `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. |
+| `AI_DAILY_LIMIT` | | Najviše AI poziva dnevno **po nalogu** (recepti + skeniranje + chat), podrazumevano `30`. Resetuje se u ponoć po beogradskom vremenu. |
 | `PEXELS_API_KEY` | | Prave fotografije jela. Besplatan ključ: <https://www.pexels.com/api/>. Bez njega se prikazuje emoji. |
 
 \* potreban je ključ za bar jednog provajdera.
 
 **Napomene**
-- Promena `APP_PIN`-a automatski odjavljuje sve uređaje.
-- Bez Redis-a se brojači (PIN pokušaji, AI limit) čuvaju u memoriji jedne serverless instance. Sa Redis-om (vidi Sinhronizacija) važe pouzdano za sve.
+- Bez Redis-a (lokalni razvoj) nalozi i brojači žive u memoriji servera i nestaju pri restartu. Na Vercelu je Redis obavezan.
+- Prijava se zaključava na 15 min posle 10 pogrešnih lozinki za isti email; najviše 5 novih naloga na sat po IP adresi.
 - Besplatan Gemini tier ume da vrati `503 high demand` ili `429`. Aplikacija tada odmah prelazi na rezervni model.
 - `GEMINI_THINKING` (podrazumevano `low`) smanjuje „razmišljanje“ modela radi bržeg odgovora.
 
 ## ▲ Deploy na Vercel
 
 1. Importuj GitHub repo na [vercel.com/new](https://vercel.com/new). Framework se prepoznaje automatski.
-2. **Settings → Environment Variables:** dodaj `APP_PIN`, `SESSION_SECRET`, `AI_PROVIDER`, API ključ i (opciono) `PEXELS_API_KEY`.
-3. Deploy 🎉 i na telefonu otvori sajt → *Share → Add to Home Screen*.
+2. **Storage → Marketplace → Upstash (Redis) → Create** (besplatni plan) i poveži bazu sa projektom. Vercel sam dodaje `KV_REST_API_URL` i `KV_REST_API_TOKEN`.
+3. **Settings → Environment Variables:** dodaj `SESSION_SECRET`, `AI_PROVIDER`, API ključ i (opciono) `AI_DAILY_LIMIT`, `PEXELS_API_KEY`.
+4. Deploy 🎉 i na telefonu otvori sajt → *Share → Add to Home Screen*.
 
-### ☁️ Sinhronizacija (opciono, besplatno)
-
-1. Na Vercelu: **Storage → Marketplace → Upstash (Redis) → Create**, besplatni plan.
-2. Poveži bazu sa projektom. Vercel sam dodaje `KV_REST_API_URL` i `KV_REST_API_TOKEN`.
-3. Redeploy. U zaglavlju se pojavljuje zeleni oblak ☁️ kad sinhronizacija radi.
-
-Za lokalni rad prekopiraj te dve vrednosti u `.env`.
+Za lokalni rad sa pravom bazom prekopiraj `KV_REST_API_URL` i `KV_REST_API_TOKEN` u `.env`.
 
 ### ⏰ Sistemski tajmer na iPhone-u (jednom)
 
@@ -103,7 +97,10 @@ public/
 └── sw.js                       # service worker (offline)
 src/
 ├── app/
-│   ├── api/auth/route.ts       # PIN provera i sesija (GET / POST / DELETE)
+│   ├── api/auth/route.ts       # trenutni korisnik (GET), odjava (DELETE)
+│   ├── api/auth/register/      # registracija
+│   ├── api/auth/login/         # prijava
+│   ├── api/auth/account/       # brisanje naloga
 │   ├── api/recipes/route.ts    # recepti kao NDJSON stream (zaštićeno sesijom, zod validacija)
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── api/chat/route.ts       # „Pitaj kuvara“ (tekstualni stream)
@@ -112,8 +109,9 @@ src/
 │   ├── layout.tsx · page.tsx
 │   └── manifest.ts · icon.svg · apple-icon.tsx
 ├── components/
-│   ├── app-shell.tsx           # splash → PIN → kuhinja
-│   ├── pin-gate.tsx            # PIN tastatura
+│   ├── app-shell.tsx           # AuthProvider + kuhinja
+│   ├── auth-sheet.tsx          # prijava / registracija
+│   ├── account-sheet.tsx       # nalog: AI potrošnja, odjava, brisanje
 │   ├── kitchen.tsx             # glavni ekran, tabovi, generisanje
 │   ├── pantry-view.tsx         # izbor i dodavanje namirnica
 │   ├── options-sheet.tsx       # podešavanja obroka
@@ -138,8 +136,10 @@ src/
     ├── use-speech.ts           # prepoznavanje govora (sr-RS)
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
-    ├── auth.ts                 # HMAC sesija
-    ├── limits.ts               # PIN zaključavanje + dnevni AI limit (Redis ili memorija)
+    ├── auth.ts · auth-client.tsx # sesije (server) i auth kontekst (klijent)
+    ├── users.ts                # nalozi (scrypt lozinke)
+    ├── kv.ts                   # Redis ili memorija (lokalni razvoj)
+    ├── limits.ts               # zaštita prijave + dnevni AI limit po nalogu
     ├── images.ts               # Pexels pretraga fotografija jela
     ├── ingredients.ts          # predefinisane namirnice
     ├── phone-timer.ts          # sistemski tajmer (iOS Prečice / Android intent)

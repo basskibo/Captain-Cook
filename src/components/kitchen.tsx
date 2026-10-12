@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { BookHeart, ChefHat, Cloud, CloudOff, WifiOff, Lock, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
+import { BookHeart, ChefHat, Cloud, CloudOff, WifiOff, SlidersHorizontal, RefreshCw, ShoppingBasket, ShoppingCart, Sparkles, UtensilsCrossed } from "lucide-react";
 import { ALL_INGREDIENTS, type Ingredient } from "@/lib/ingredients";
 import { EMPTY_PROFILE, type Recipe, type ShoppingItem, type TasteProfile } from "@/lib/types";
 import { usePersistentState } from "@/lib/use-persistent-state";
@@ -16,6 +16,8 @@ import { ScanSheet, type ScanInput } from "./scan-sheet";
 import { TimerTray } from "./timer-tray";
 import { ShoppingView } from "./shopping-view";
 import { ProfileSheet, profileSummary } from "./profile-sheet";
+import { AccountSheet, Avatar } from "./account-sheet";
+import { useAuth } from "@/lib/auth-client";
 import { useTimers } from "@/lib/timers";
 import { useSyncStatus } from "@/lib/sync";
 import { useOnline } from "@/lib/use-online";
@@ -80,7 +82,9 @@ function guessEmoji(name: string) {
   return map.find(([re]) => re.test(n))?.[1] ?? "🥄";
 }
 
-export function Kitchen({ onLocked }: { onLocked: () => void }) {
+export function Kitchen() {
+  const auth = useAuth();
+  const [accountOpen, setAccountOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("pantry");
   const [custom, setCustom] = usePersistentState<Ingredient[]>("cc.custom", [], { sync: true });
   const [selectedList, setSelectedList] = usePersistentState<string[]>("cc.selected", [], { sync: true });
@@ -191,6 +195,13 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
 
   const cook = async (more = false) => {
     setOptionsOpen(false);
+    if (!auth.isLoggedIn()) {
+      auth.requireAuth({
+        reason: "AI predlozi jela su dostupni uz besplatan nalog.",
+        onSuccess: () => void cook(more),
+      });
+      return;
+    }
     setTab("recipes");
     setError(null);
     setLoading(true);
@@ -217,7 +228,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         }),
       });
       if (res.status === 401) {
-        onLocked();
+        auth.requireAuth({ reason: "Sesija je istekla — prijavi se ponovo.", onSuccess: () => void cook(more) });
         return;
       }
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Greška");
@@ -242,10 +253,41 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
     }
   };
 
-  const logout = async () => {
-    await fetch("/api/auth", { method: "DELETE" }).catch(() => {});
-    onLocked();
+  const scanImage = (file: File) => {
+    if (!auth.isLoggedIn()) {
+      auth.requireAuth({
+        reason: "Prepoznavanje namirnica sa slike radi uz besplatan nalog.",
+        onSuccess: () => setScanInput({ kind: "image", file }),
+      });
+      return;
+    }
+    setScanInput({ kind: "image", file });
   };
+
+  const voiceInput = (text: string) => {
+    if (!auth.isLoggedIn()) {
+      auth.requireAuth({
+        reason: "Glasovni unos radi uz besplatan nalog.",
+        onSuccess: () => setScanInput({ kind: "text", text }),
+      });
+      return;
+    }
+    setScanInput({ kind: "text", text });
+  };
+
+  /** „Predloži jela“: gost prvo pravi nalog, pa se otvaraju podešavanja obroka. */
+  const openOptions = () => {
+    if (!auth.isLoggedIn()) {
+      auth.requireAuth({
+        reason: "AI predlozi jela su dostupni uz besplatan nalog.",
+        onSuccess: () => setOptionsOpen(true),
+      });
+      return;
+    }
+    setOptionsOpen(true);
+  };
+
+  const openAccount = () => (auth.user ? setAccountOpen(true) : auth.requireAuth());
 
   const count = selectedList.length;
 
@@ -318,7 +360,7 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
           })}
         </nav>
 
-        <div className="mt-auto space-y-1">
+        <div className="mt-auto space-y-2">
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
@@ -328,13 +370,31 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
             <span className="flex-1">Moj ukus</span>
             {profileSummary(profile) && <span className="h-2 w-2 rounded-full bg-accent" />}
           </button>
-          <button
-            type="button"
-            onClick={logout}
-            className="flex h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-medium text-muted hover:bg-surface-2/60 hover:text-text"
-          >
-            <Lock className="h-4.5 w-4.5" /> Zaključaj
-          </button>
+          {auth.user ? (
+            <button
+              type="button"
+              onClick={openAccount}
+              className="flex w-full items-center gap-3 rounded-2xl border border-border p-2.5 text-left hover:bg-surface-2/60"
+            >
+              <Avatar name={auth.user.name} className="h-9 w-9 text-sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold">{auth.user.name}</span>
+                <span className="block truncate text-xs text-muted">{auth.user.email}</span>
+              </span>
+            </button>
+          ) : (
+            <div className="rounded-2xl border border-border p-4">
+              <p className="text-sm font-semibold">Sačuvaj sve na nalogu</p>
+              <p className="mt-1 text-xs text-muted">Besplatan nalog za AI predloge i recepte na svim uređajima.</p>
+              <button
+                type="button"
+                onClick={() => auth.requireAuth()}
+                className="mt-3 h-10 w-full rounded-xl bg-text text-sm font-semibold text-bg hover:opacity-90"
+              >
+                Prijavi se / registruj
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -352,23 +412,19 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
             </p>
             <h1 className="font-display text-xl leading-tight font-bold">{TABS.find((t) => t.id === tab)?.label}</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => setProfileOpen(true)}
-            aria-label="Moj ukus"
-            className="relative grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted active:text-text"
-          >
-            <SlidersHorizontal className="h-4.5 w-4.5" />
-            {profileSummary(profile) && <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-accent" />}
-          </button>
-          <button
-            type="button"
-            onClick={logout}
-            aria-label="Zaključaj"
-            className="grid h-10 w-10 place-items-center rounded-full bg-surface-2 text-muted active:text-text"
-          >
-            <Lock className="h-4.5 w-4.5" />
-          </button>
+          {auth.user ? (
+            <button type="button" onClick={openAccount} aria-label="Nalog">
+              <Avatar name={auth.user.name} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => auth.requireAuth()}
+              className="h-10 rounded-full bg-surface-2 px-4 text-sm font-semibold"
+            >
+              Prijavi se
+            </button>
+          )}
         </div>
       </header>
 
@@ -413,9 +469,9 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
                 onAddCustom={addCustom}
                 onRemoveCustom={removeCustom}
                 onClear={() => setSelectedList([])}
-                onScanImage={(file) => setScanInput({ kind: "image", file })}
-                onVoice={(text) => setScanInput({ kind: "text", text })}
-                onCook={() => setOptionsOpen(true)}
+                onScanImage={scanImage}
+                onVoice={voiceInput}
+                onCook={openOptions}
               />
             )}
 
@@ -576,19 +632,19 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
               exit={{ y: 30, opacity: 0 }}
               whileTap={{ scale: 0.97 }}
               type="button"
-              onClick={() => setOptionsOpen(true)}
+              onClick={openOptions}
               className="bg-accent-gradient pointer-events-auto mb-3 flex h-14 w-full items-center justify-between rounded-2xl pr-2 pl-5 text-white shadow-[0_16px_36px_-10px_var(--glow)]"
             >
               <span className="flex items-center gap-2 text-lg font-semibold">
-                <Sparkles className="h-5 w-5" /> Šta da skuvam?
+                <Sparkles className="h-5 w-5" /> Predloži jela
               </span>
               <motion.span
                 key={count}
-                initial={{ scale: 1.4 }}
+                initial={{ scale: 1.2 }}
                 animate={{ scale: 1 }}
-                className="grid h-10 min-w-10 place-items-center rounded-xl bg-white/20 px-2 font-bold"
+                className="rounded-xl bg-white/20 px-2.5 py-1 text-sm font-semibold"
               >
-                {count}
+                {count} namirnica
               </motion.span>
             </motion.button>
           )}
@@ -654,7 +710,15 @@ export function Kitchen({ onLocked }: { onLocked: () => void }) {
         lookup={lookup}
         selected={selected}
         customNames={custom.map((c) => c.name)}
-        onUnauthorized={onLocked}
+      />
+
+      <AccountSheet
+        open={accountOpen}
+        onClose={() => setAccountOpen(false)}
+        onEditProfile={() => {
+          setAccountOpen(false);
+          setProfileOpen(true);
+        }}
       />
 
       <RecipeDetail

@@ -1,10 +1,11 @@
-import { isAuthed, unauthorized } from "@/lib/auth";
+import { currentUserId, unauthorized } from "@/lib/auth";
 import { aiUsage } from "@/lib/limits";
 
 export async function GET() {
-  if (!(await isAuthed())) return unauthorized();
+  const userId = await currentUserId();
+  if (!userId) return unauthorized();
   try {
-    return Response.json(await aiUsage());
+    return Response.json(await aiUsage(userId));
   } catch {
     return Response.json({ used: null, limit: null });
   }

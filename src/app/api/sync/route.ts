@@ -1,24 +1,24 @@
 import { z } from "zod";
-import { isAuthed, unauthorized } from "@/lib/auth";
-import { redis, redisEnabled } from "@/lib/redis";
+import { currentUserId, unauthorized } from "@/lib/auth";
+import { kv } from "@/lib/kv";
 
 /** Ključevi koji se sinhronizuju između uređaja. */
 const SYNC_KEYS = ["cc.custom", "cc.selected", "cc.saved", "cc.shopping", "cc.profile"] as const;
-const HASH = "cc:sync";
+/** Podaci svakog korisnika su u posebnom hash-u. */
+const hashFor = (userId: string) => `cc:sync:${userId}`;
 
 type Entry = { v: unknown; t: number };
 
 export async function GET() {
-  if (!(await isAuthed())) return unauthorized();
-  if (!redisEnabled()) return Response.json({ enabled: false });
+  const userId = await currentUserId();
+  if (!userId) return unauthorized();
 
   try {
-    // HGETALL vraća ravan niz [polje, vrednost, polje, vrednost, ...]
-    const flat = (await redis<string[]>("HGETALL", HASH)) ?? [];
+    const raw = await kv.hgetall(hashFor(userId));
     const data: Record<string, Entry> = {};
-    for (let i = 0; i < flat.length; i += 2) {
+    for (const [field, value] of Object.entries(raw)) {
       try {
-        data[flat[i]] = JSON.parse(flat[i + 1]);
+        data[field] = JSON.parse(value);
       } catch {}
     }
     return Response.json({ enabled: true, data });
@@ -35,8 +35,8 @@ const putSchema = z.object({
 });
 
 export async function PUT(request: Request) {
-  if (!(await isAuthed())) return unauthorized();
-  if (!redisEnabled()) return Response.json({ enabled: false });
+  const userId = await currentUserId();
+  if (!userId) return unauthorized();
 
   const text = await request.text();
   if (text.length > 900_000) return Response.json({ error: "Previše podataka" }, { status: 413 });
@@ -50,10 +50,10 @@ export async function PUT(request: Request) {
   const { key, v, t } = parsed.data;
   try {
     // Novija izmena pobeđuje (last-write-wins po vremenu izmene na uređaju).
-    const current = await redis<string | null>("HGET", HASH, key);
+    const current = await kv.hget(hashFor(userId), key);
     const currentT = current ? (JSON.parse(current) as Entry).t : 0;
     if (t <= currentT) return Response.json({ ok: true, stale: true });
-    await redis("HSET", HASH, key, JSON.stringify({ v, t }));
+    await kv.hset(hashFor(userId), key, JSON.stringify({ v, t }));
     return Response.json({ ok: true });
   } catch (err) {
     console.error("[sync]", err);

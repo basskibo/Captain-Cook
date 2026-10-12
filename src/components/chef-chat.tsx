@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, MessageCircle } from "lucide-react";
 import type { Recipe } from "@/lib/types";
+import { useAuth } from "@/lib/auth-client";
 
 type Msg = { role: "user" | "assistant"; text: string };
 
@@ -13,6 +14,7 @@ export function ChefChat({ recipe, profileNote }: { recipe: Recipe; profileNote?
   const [messages, setMessages] = useState<Msg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const { isLoggedIn, requireAuth } = useAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -23,6 +25,10 @@ export function ChefChat({ recipe, profileNote }: { recipe: Recipe; profileNote?
   const ask = async (question: string) => {
     const text = question.trim();
     if (!text || busy) return;
+    if (!isLoggedIn()) {
+      requireAuth({ reason: "Pitanja kuvaru su dostupna uz besplatan nalog.", onSuccess: () => void ask(text) });
+      return;
+    }
     const history: Msg[] = [...messages, { role: "user", text }];
     setMessages([...history, { role: "assistant", text: "" }]);
     setDraft("");

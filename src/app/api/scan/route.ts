@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isAuthed, unauthorized } from "@/lib/auth";
+import { currentUserId, unauthorized } from "@/lib/auth";
 import { consumeAi } from "@/lib/limits";
 import { detectIngredients } from "@/lib/ai/scan";
 
@@ -19,12 +19,13 @@ const bodySchema = z
   .refine((b) => b.image || b.text, "Potrebna je slika ili tekst");
 
 export async function POST(request: Request) {
-  if (!(await isAuthed())) return unauthorized();
+  const userId = await currentUserId();
+  if (!userId) return unauthorized();
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Neispravan zahtev" }, { status: 400 });
 
-  const limited = await consumeAi();
+  const limited = await consumeAi(userId);
   if (limited) return limited;
 
   try {

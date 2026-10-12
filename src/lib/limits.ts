@@ -1,70 +1,45 @@
 import "server-only";
-import { redis, redisEnabled } from "./redis";
+import { kv } from "./kv";
 
-/**
- * Ograničenja: zaključavanje PIN-a posle pogrešnih pokušaja i dnevni limit AI poziva.
- * Sa Redis-om važe za sve serverless instance; bez njega rade u memoriji jedne instance.
- */
+/** Ograničenja: pokušaji prijave/registracije i dnevni AI limit po nalogu. */
 
-const MAX_PIN_ATTEMPTS = 5;
-const PIN_LOCK_SECONDS = 5 * 60;
-// Zaštita i od napada sa više IP adresa: ukupno pogrešnih pokušaja po satu.
-const MAX_GLOBAL_FAILURES = 40;
-
-const memory = new Map<string, { value: number; expiresAt: number }>();
-
-async function incr(key: string, ttlSeconds: number) {
-  if (redisEnabled()) {
-    const value = await redis<number>("INCR", key);
-    if (value === 1) await redis("EXPIRE", key, ttlSeconds);
-    return value;
-  }
-  const now = Date.now();
-  const cur = memory.get(key);
-  const next = cur && cur.expiresAt > now ? { ...cur, value: cur.value + 1 } : { value: 1, expiresAt: now + ttlSeconds * 1000 };
-  memory.set(key, next);
-  return next.value;
+/** Vraća broj sekundi do otključavanja, ili 0 ako pokušaj sme. */
+async function attemptGuard(key: string, max: number) {
+  const value = Number((await kv.get(key)) ?? 0);
+  return value >= max ? Math.max(1, await kv.ttl(key)) : 0;
 }
 
-async function read(key: string): Promise<{ value: number; ttl: number }> {
-  if (redisEnabled()) {
-    const value = Number((await redis<string | null>("GET", key)) ?? 0);
-    const ttl = value ? await redis<number>("TTL", key) : 0;
-    return { value, ttl: Math.max(0, ttl) };
-  }
-  const cur = memory.get(key);
-  if (!cur || cur.expiresAt <= Date.now()) return { value: 0, ttl: 0 };
-  return { value: cur.value, ttl: Math.ceil((cur.expiresAt - Date.now()) / 1000) };
+export const LOGIN_MAX = 10;
+export const LOGIN_WINDOW = 15 * 60;
+
+export async function loginLockedFor(ip: string, email: string) {
+  return Math.max(
+    await attemptGuard(`cc:login:ip:${ip}`, LOGIN_MAX * 3),
+    await attemptGuard(`cc:login:email:${email.toLowerCase()}`, LOGIN_MAX),
+  );
 }
 
-async function del(key: string) {
-  if (redisEnabled()) await redis("DEL", key);
-  else memory.delete(key);
+export async function registerLoginFailure(ip: string, email: string) {
+  await Promise.all([
+    kv.incr(`cc:login:ip:${ip}`, LOGIN_WINDOW),
+    kv.incr(`cc:login:email:${email.toLowerCase()}`, LOGIN_WINDOW),
+  ]);
 }
 
-/** Sekunde do otključavanja (0 = nije zaključano). */
-export async function pinLockedFor(ip: string) {
-  const [own, global] = await Promise.all([read(`cc:pin:${ip}`), read("cc:pin:global")]);
-  if (own.value >= MAX_PIN_ATTEMPTS) return own.ttl || PIN_LOCK_SECONDS;
-  if (global.value >= MAX_GLOBAL_FAILURES) return global.ttl || 3600;
-  return 0;
+export async function clearLoginFailures(email: string) {
+  await kv.del(`cc:login:email:${email.toLowerCase()}`);
 }
 
-/** Beleži pogrešan pokušaj; vraća koliko pokušaja je ostalo. */
-export async function registerPinFailure(ip: string) {
-  const [count] = await Promise.all([incr(`cc:pin:${ip}`, PIN_LOCK_SECONDS), incr("cc:pin:global", 3600)]);
-  return Math.max(0, MAX_PIN_ATTEMPTS - count);
+/** Najviše 5 novih naloga po IP adresi na sat. */
+export async function registrationAllowed(ip: string) {
+  return (await kv.incr(`cc:register:${ip}`, 3600)) <= 5;
 }
 
-export async function clearPinFailures(ip: string) {
-  await del(`cc:pin:${ip}`);
-}
-
-// ---------- Dnevni limit AI poziva ----------
+// ---------- Dnevni AI limit po nalogu ----------
 
 export function aiDailyLimit() {
   const n = Number(process.env.AI_DAILY_LIMIT);
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 60;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 30;
 }
 
 function today() {
@@ -72,20 +47,22 @@ function today() {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Belgrade" }).format(new Date());
 }
 
-export async function aiUsage() {
-  const { value } = await read(`cc:ai:${today()}`);
+const aiKey = (userId: string) => `cc:ai:${userId}:${today()}`;
+
+export async function aiUsage(userId: string) {
+  const used = Number((await kv.get(aiKey(userId))) ?? 0);
   const limit = aiDailyLimit();
-  return { used: Math.min(value, limit), limit };
+  return { used: Math.min(used, limit), limit };
 }
 
 /** Troši jedan AI poziv. Vraća null ako je u redu, ili Response 429 ako je limit potrošen. */
-export async function consumeAi(): Promise<Response | null> {
+export async function consumeAi(userId: string): Promise<Response | null> {
   const limit = aiDailyLimit();
   try {
-    const used = await incr(`cc:ai:${today()}`, 2 * 24 * 3600);
+    const used = await kv.incr(aiKey(userId), 2 * 24 * 3600);
     if (used > limit) {
       return Response.json(
-        { error: `Dnevni AI limit (${limit}) je potrošen. Resetuje se u ponoć. 🌙` },
+        { error: `Potrošio si današnji AI limit (${limit}). Resetuje se u ponoć. 🌙` },
         { status: 429 },
       );
     }

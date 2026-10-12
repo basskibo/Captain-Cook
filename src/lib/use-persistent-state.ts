@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchRemote, isEmptyValue, mergeFirstSync, pushKey, subscribeKey, type SyncEntry } from "./sync";
+import { fetchRemote, getSyncStatus, isEmptyValue, mergeFirstSync, pushKey, subscribeKey, useAuthEpoch, type SyncEntry } from "./sync";
 
 /**
  * useState koji se čuva u localStorage, a uz `sync: true` i sinhronizuje između uređaja.
@@ -14,14 +14,17 @@ export function usePersistentState<T>(key: string, initial: T, opts?: { sync?: b
   const tKey = `${key}:t`;
   // Samo izmene korisnika (preko vraćenog setter-a) se šalju na server.
   const dirty = useRef(false);
+  const initialRef = useRef(initial);
+  // Pri prijavi/odjavi se sinhronizacija pokreće iznova (za drugog korisnika).
+  const epoch = useAuthEpoch();
 
   useEffect(() => {
     let hasLocal = false;
     try {
       const raw = localStorage.getItem(key);
       hasLocal = raw !== null;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- čitanje spoljnog store-a posle hidracije
-      if (raw !== null) setValue(JSON.parse(raw) as T);
+       
+      setValue(raw !== null ? (JSON.parse(raw) as T) : initialRef.current);
     } catch {}
     setHydrated(true);
     if (!sync) return;
@@ -70,18 +73,21 @@ export function usePersistentState<T>(key: string, initial: T, opts?: { sync?: b
       else if (local !== undefined && (!entry || lt > entry.t)) pushKey(key, local, lt);
     });
     return unsubscribe;
-  }, [key, tKey, sync]);
+  }, [key, tKey, sync, epoch]);
 
   useEffect(() => {
     if (!hydrated) return;
     try {
       localStorage.setItem(key, JSON.stringify(value));
-      if (sync && dirty.current) {
+      // Vremenska oznaka samo kad sinhronizacija radi (prijavljen korisnik). Gostove izmene
+      // ostaju bez oznake, pa se pri prijavi SPAJAJU sa nalogom umesto da ga prepišu.
+      if (sync && dirty.current && getSyncStatus() !== "off") {
         dirty.current = false;
         const t = Date.now();
         localStorage.setItem(tKey, String(t));
         pushKey(key, value, t);
       }
+      dirty.current = false;
     } catch {}
   }, [key, tKey, value, hydrated, sync]);
 
