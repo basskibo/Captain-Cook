@@ -40,6 +40,12 @@ export const kv = {
     mem.set(key, { v: value });
   },
 
+  /** SET sa istekom (sekunde). */
+  async setEx(key: string, value: string, ttlSeconds: number) {
+    if (redisOn()) return void (await redis("SET", key, value, "EX", ttlSeconds));
+    mem.set(key, { v: value, exp: Date.now() + ttlSeconds * 1000 });
+  },
+
   /** Postavlja samo ako ključ ne postoji; vraća true ako je postavljen. */
   async setNX(key: string, value: string): Promise<boolean> {
     if (redisOn()) return (await redis<string | null>("SET", key, value, "NX")) === "OK";

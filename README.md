@@ -14,7 +14,7 @@ Next.js 16 · React 19 · Tailwind CSS 4 · Motion · Gemini / Claude Haiku · V
 
 | | |
 |---|---|
-| 👤 **Nalozi** | Registracija emailom i lozinkom (scrypt heš, potpisan httpOnly cookie 60 dana). Bez naloga se biraju namirnice i vodi lista lokalno; AI predlozi, skeniranje i chat traže nalog. Dnevni AI limit po nalogu, zaštita od pogađanja lozinke. |
+| 👤 **Nalozi** | Registracija emailom i lozinkom (scrypt heš, potpisan httpOnly cookie 60 dana), zaboravljena lozinka preko mejla (Resend). Bez naloga se biraju namirnice i vodi lista lokalno; AI predlozi, skeniranje i chat traže nalog. Dnevni AI limit po nalogu, zaštita od pogađanja lozinke. |
 | 📷 **Slikaj frižider** | Fotografiši frižider ili pult, a AI (Gemini vision) prepozna namirnice i ponudi da ih označi. |
 | 🎙️ **Glasovni unos** | Reci „imam dva jajeta, malo sira i crnog luka“ i namirnice se označe (Web Speech API + AI razume padeže). |
 | 🥕 **Namirnice** | ~80 predefinisanih namirnica u 7 kategorija + dodavanje svojih. Pretraga radi i bez kvačica (`sargarepa` → Šargarepa). |
@@ -60,6 +60,9 @@ npm run dev
 | `ANTHROPIC_API_KEY` | ✅* | Ključ sa <https://console.anthropic.com> |
 | `ANTHROPIC_MODEL` | | Podrazumevano `claude-haiku-5-5` |
 | `KV_REST_API_URL` / `KV_REST_API_TOKEN` | ✅ (produkcija) | Upstash Redis: nalozi, sinhronizacija i limiti (postavlja ih Vercel integracija). Rade i `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. |
+| `RESEND_API_KEY` | ✅ (za reset) | Ključ sa <https://resend.com/api-keys> — šalje mejl za zaboravljenu lozinku. Bez njega lokalno se link ispisuje u konzolu servera. |
+| `EMAIL_FROM` | | Pošiljalac, npr. `Captain Cook <noreply@jageticbojan.com>` (domen mora biti verifikovan u Resend-u). Podrazumevano `onboarding@resend.dev` — šalje samo na email tvog Resend naloga. |
+| `APP_URL` | | Adresa aplikacije za link u mejlu, npr. `https://captain-cook.jageticbojan.com`. Na Vercelu se bez nje koristi glavni domen projekta. |
 | `AI_DAILY_LIMIT` | | Najviše AI poziva dnevno **po nalogu** (recepti + skeniranje + chat), podrazumevano `30`. Resetuje se u ponoć po beogradskom vremenu. |
 | `PEXELS_API_KEY` | | Prave fotografije jela. Besplatan ključ: <https://www.pexels.com/api/>. Bez njega se prikazuje emoji. |
 
@@ -79,6 +82,14 @@ npm run dev
 4. Deploy 🎉 i na telefonu otvori sajt → *Share → Add to Home Screen*.
 
 Za lokalni rad sa pravom bazom prekopiraj `KV_REST_API_URL` i `KV_REST_API_TOKEN` u `.env`.
+
+### ✉️ Zaboravljena lozinka (Resend)
+
+1. Napravi nalog na [resend.com](https://resend.com) (besplatno: 3.000 mejlova mesečno) i API ključ → `RESEND_API_KEY`.
+2. **Domains → Add domain** → `jageticbojan.com` i dodaj DNS zapise koje Resend prikaže (kod GoDaddy-ja, gde je i subdomen). Sačekaj „Verified“.
+3. Postavi `EMAIL_FROM="Captain Cook <noreply@jageticbojan.com>"` i `APP_URL=https://captain-cook.jageticbojan.com`, pa redeploy.
+
+Link u mejlu važi 1 sat i može se iskoristiti jednom; posle promene lozinke stare sesije na svim uređajima se odjavljuju. Isti odgovor stiže i za email koji nema nalog, pa se ne može proveriti ko je registrovan. Najviše 3 zahteva po emailu na sat.
 
 ### ⏰ Sistemski tajmer na iPhone-u (jednom)
 
@@ -101,6 +112,8 @@ src/
 │   ├── api/auth/register/      # registracija
 │   ├── api/auth/login/         # prijava
 │   ├── api/auth/account/       # brisanje naloga
+│   ├── api/auth/forgot/        # slanje linka za novu lozinku
+│   ├── api/auth/reset/         # postavljanje nove lozinke
 │   ├── api/recipes/route.ts    # recepti kao NDJSON stream (zaštićeno sesijom, zod validacija)
 │   ├── api/scan/route.ts       # prepoznavanje namirnica sa slike / iz teksta
 │   ├── api/chat/route.ts       # „Pitaj kuvara“ (tekstualni stream)
@@ -137,7 +150,8 @@ src/
     ├── scale.ts                # preračunavanje količina za broj porcija
     ├── resize-image.ts         # smanjivanje fotografije u browseru pre slanja
     ├── auth.ts · auth-client.tsx # sesije (server) i auth kontekst (klijent)
-    ├── users.ts                # nalozi (scrypt lozinke)
+    ├── users.ts                # nalozi (scrypt lozinke), tokeni za reset
+    ├── email.ts                # Resend REST + šablon mejla
     ├── kv.ts                   # Redis ili memorija (lokalni razvoj)
     ├── limits.ts               # zaštita prijave + dnevni AI limit po nalogu
     ├── images.ts               # Pexels pretraga fotografija jela

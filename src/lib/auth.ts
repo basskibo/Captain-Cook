@@ -1,6 +1,7 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { kv } from "./kv";
 
 export const SESSION_COOKIE = "cc_session";
 export const SESSION_MAX_AGE = 60 * 60 * 24 * 60; // 60 dana
@@ -30,17 +31,26 @@ function createSessionToken(userId: string) {
   return `${payload}.${sign(payload)}`;
 }
 
-function verifySessionToken(token: string | undefined): string | null {
+function verifySessionToken(token: string | undefined): { userId: string; issuedAt: number } | null {
   if (!token) return null;
   const [userId, exp, sig] = token.split(".");
   if (!userId || !exp || !sig) return null;
   if (!safeEqual(sig, sign(`${userId}.${exp}`))) return null;
-  return Number(exp) > Date.now() / 1000 ? userId : null;
+  if (Number(exp) <= Date.now() / 1000) return null;
+  return { userId, issuedAt: Number(exp) - SESSION_MAX_AGE };
 }
 
-/** Id prijavljenog korisnika ili null. */
+/**
+ * Id prijavljenog korisnika ili null.
+ * Sesija ne važi ako je nalog obrisan ili je lozinka promenjena posle prijave.
+ */
 export async function currentUserId() {
-  return verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value);
+  const session = verifySessionToken((await cookies()).get(SESSION_COOKIE)?.value);
+  if (!session) return null;
+  const raw = await kv.get(`cc:user:${session.userId}`).catch(() => null);
+  if (!raw) return null;
+  const { passwordChangedAt = 0 } = JSON.parse(raw) as { passwordChangedAt?: number };
+  return passwordChangedAt > session.issuedAt ? null : session.userId;
 }
 
 export async function startSession(userId: string) {

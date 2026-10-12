@@ -30,6 +30,11 @@ interface AuthContextValue {
   requireAuth: (prompt?: AuthPrompt) => void;
   prompt: AuthPrompt | null;
   closePrompt: () => void;
+  /** Šalje link za novu lozinku; vraća grešku ili null. */
+  forgotPassword: (email: string) => Promise<string | null>;
+  /** Token iz linka u mejlu (?reset=...), dok korisnik ne postavi novu lozinku. */
+  resetToken: string | null;
+  resetPassword: (password: string) => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -45,11 +50,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [prompt, setPrompt] = useState<AuthPrompt | null>(null);
   const userRef = useRef<User | null>(null);
+  const [resetToken, setResetToken] = useState<string | null>(null);
 
   const setUser = useCallback((u: User | null, changed: boolean) => {
     userRef.current = u;
     setUserState(u);
     if (changed) bumpAuthEpoch();
+  }, []);
+
+  useEffect(() => {
+    // Link iz mejla za novu lozinku: /?reset=TOKEN → otvori formu i skloni token iz adrese.
+    const token = new URLSearchParams(window.location.search).get("reset");
+    if (token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- čitanje URL-a posle hidracije
+      setResetToken(token);
+      setPrompt({});
+      const url = new URL(window.location.href);
+      url.searchParams.delete("reset");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
   }, []);
 
   useEffect(() => {
@@ -91,6 +110,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [afterLogin],
   );
 
+  const forgotPassword = useCallback(async (email: string) => {
+    const { ok, data } = await post("/api/auth/forgot", { email });
+    return ok ? null : (data.error ?? "Slanje nije uspelo.");
+  }, []);
+
+  const resetPassword = useCallback(
+    async (password: string) => {
+      if (!resetToken) return "Link nije ispravan.";
+      const { ok, data } = await post("/api/auth/reset", { token: resetToken, password });
+      if (!ok || !data.user) return data.error ?? "Promena lozinke nije uspela.";
+      setResetToken(null);
+      afterLogin(data.user);
+      return null;
+    },
+    [resetToken, afterLogin],
+  );
+
   const clearLocal = () => {
     try {
       for (const k of ACCOUNT_KEYS) {
@@ -123,9 +159,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       deleteAccount,
       requireAuth: (p) => setPrompt(p ?? {}),
       prompt,
-      closePrompt: () => setPrompt(null),
+      closePrompt: () => {
+        setPrompt(null);
+        setResetToken(null);
+      },
+      forgotPassword,
+      resetToken,
+      resetPassword,
     }),
-    [user, ready, login, register, logout, deleteAccount, prompt],
+    [user, ready, login, register, logout, deleteAccount, prompt, forgotPassword, resetToken, resetPassword],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

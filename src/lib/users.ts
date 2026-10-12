@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes, randomUUID, scrypt, type ScryptOptions } from "node:crypto";
+import { createHash, randomBytes, randomUUID, scrypt, type ScryptOptions } from "node:crypto";
 import { safeEqual } from "./auth";
 import { kv } from "./kv";
 import { redisEnabled } from "./redis";
@@ -19,6 +19,8 @@ export interface PublicUser {
 interface StoredUser extends PublicUser {
   salt: string;
   hash: string;
+  /** Sekunde (unix) poslednje promene lozinke — starije sesije prestaju da važe. */
+  passwordChangedAt?: number;
 }
 
 const SCRYPT: ScryptOptions = { N: 16384, r: 8, p: 1 };
@@ -74,4 +76,39 @@ export async function deleteUser(id: string) {
   const user = await getUser(id);
   if (!user) return;
   await kv.del(userKey(id), emailKey(user.email), `cc:sync:${id}`);
+}
+
+// ---------- Zaboravljena lozinka ----------
+
+export const RESET_TTL = 60 * 60; // 1 sat
+
+/** U bazi se čuva samo heš tokena — ni ko vidi bazu ne može da iskoristi link. */
+const resetKey = (token: string) => `cc:reset:${createHash("sha256").update(token).digest("base64url")}`;
+
+/** Pravi jednokratni token za reset; null ako nalog ne postoji. */
+export async function createResetToken(email: string) {
+  const id = await kv.get(emailKey(email));
+  const raw = id ? await kv.get(userKey(id)) : null;
+  if (!raw) return null;
+  const user = JSON.parse(raw) as StoredUser;
+  const token = randomBytes(32).toString("base64url");
+  await kv.setEx(resetKey(token), user.id, RESET_TTL);
+  return { token, user: toPublic(user) };
+}
+
+/** Postavlja novu lozinku preko tokena (token se troši). Vraća korisnika ili null. */
+export async function resetPassword(token: string, password: string): Promise<PublicUser | null> {
+  const key = resetKey(token);
+  const id = await kv.get(key);
+  if (!id) return null;
+  await kv.del(key);
+  const raw = await kv.get(userKey(id));
+  if (!raw) return null;
+  const user = JSON.parse(raw) as StoredUser;
+  user.salt = randomBytes(16).toString("base64");
+  user.hash = await hashPassword(password, user.salt);
+  // Odjavljuje sve postojeće sesije (i one koje je možda otvorio neko drugi).
+  user.passwordChangedAt = Math.floor(Date.now() / 1000);
+  await kv.set(userKey(id), JSON.stringify(user));
+  return toPublic(user);
 }

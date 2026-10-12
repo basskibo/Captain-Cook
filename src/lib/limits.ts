@@ -35,6 +35,15 @@ export async function registrationAllowed(ip: string) {
   return (await kv.incr(`cc:register:${ip}`, 3600)) <= 5;
 }
 
+/** Zahtevi za reset lozinke: 3 po emailu i 10 po IP adresi na sat (štiti inbox i Resend kvotu). */
+export async function resetRequestAllowed(ip: string, email: string) {
+  const [byEmail, byIp] = await Promise.all([
+    kv.incr(`cc:reset-req:email:${email.toLowerCase()}`, 3600),
+    kv.incr(`cc:reset-req:ip:${ip}`, 3600),
+  ]);
+  return byEmail <= 3 && byIp <= 10;
+}
+
 // ---------- Dnevni AI limit po nalogu ----------
 
 export function aiDailyLimit() {
